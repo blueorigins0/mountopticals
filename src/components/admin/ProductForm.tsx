@@ -1,0 +1,1392 @@
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  ArrowLeft,
+  Package,
+  Plus,
+  Trash2,
+  ImagePlus,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  X,
+  RefreshCw,
+  Eye,
+  Save,
+  Store,
+  ShoppingBag,
+  Boxes,
+  Tag,
+  User,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Tables } from "@/integrations/supabase/types";
+import { ImageUpload, GalleryUpload } from "@/components/admin/ImageUpload";
+
+type Product = Tables<"products">;
+type Category = Tables<"categories">;
+type Brand = Tables<"brands">;
+type ProductVariation = Tables<"product_variations">;
+
+interface Attribute {
+  name: string;
+  values: string[];
+  usedForVariations: boolean;
+  visibleOnProduct: boolean;
+}
+
+interface VariationData {
+  id?: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  color_image: string;
+  stock_quantity: number;
+  shop_price: number;
+  shop_moq: number;
+  retail_price: number;
+  retail_moq: number;
+  weight: number;
+  is_active: boolean;
+}
+
+interface ProductFormProps {
+  product?: Product | null;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+const SHIPPING_CLASSES = [
+  { value: "standard", label: "Standard" },
+  { value: "express", label: "Express" },
+  { value: "heavy", label: "Heavy Items" },
+  { value: "fragile", label: "Fragile" },
+  { value: "free", label: "Free Shipping" },
+];
+
+const TAX_CLASSES = [
+  { value: "standard", label: "Standard Rate" },
+  { value: "reduced", label: "Reduced Rate" },
+  { value: "zero", label: "Zero Rate" },
+  { value: "exempt", label: "Tax Exempt" },
+];
+
+const PRODUCT_LABELS = [
+  "TRENDING",
+  "BEST SELLER",
+  "NEW ARRIVAL",
+  "STOCK RUNNING LOW",
+  "MOST LOVED",
+];
+
+export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
+  const { toast } = useToast();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
+  const [productType, setProductType] = useState<"simple" | "variable">(
+    product?.has_variations ? "variable" : "simple"
+  );
+
+  // Basic Info
+  const [name, setName] = useState(product?.name || "");
+  const [slug, setSlug] = useState(product?.slug || "");
+  const [description, setDescription] = useState(product?.description || "");
+  const [shortDescription, setShortDescription] = useState(product?.short_description || "");
+  const [sku, setSku] = useState(product?.sku || "");
+  const [categoryId, setCategoryId] = useState(product?.category_id || "");
+  const [brandId, setBrandId] = useState(product?.brand_id || "");
+  const [isActive, setIsActive] = useState(product?.is_active ?? true);
+
+  // Images
+  const [featureImage, setFeatureImage] = useState(product?.images?.[0] || "");
+  const [galleryImages, setGalleryImages] = useState<string[]>(product?.images?.slice(1) || []);
+
+  // Simple Product Pricing (3-Tier)
+  const [shopPrice, setShopPrice] = useState(product?.shop_price?.toString() || "");
+  const [shopMoq, setShopMoq] = useState(product?.shop_moq?.toString() || "10");
+  const [retailPrice, setRetailPrice] = useState(product?.retail_price?.toString() || "");
+  const [retailMoq, setRetailMoq] = useState(product?.retail_moq?.toString() || "1");
+  const [guestPrice, setGuestPrice] = useState(product?.guest_price?.toString() || "");
+  const [regularPrice, setRegularPrice] = useState(product?.regular_price?.toString() || "");
+  const [stockQuantity, setStockQuantity] = useState(product?.stock_quantity?.toString() || "0");
+
+  // Attributes
+  const [attributes, setAttributes] = useState<Attribute[]>([
+    { name: "Size", values: [], usedForVariations: true, visibleOnProduct: true },
+    { name: "Color", values: [], usedForVariations: true, visibleOnProduct: true },
+  ]);
+  const [newAttributeValue, setNewAttributeValue] = useState<{ [key: string]: string }>({});
+  const [newAttributeName, setNewAttributeName] = useState("");
+
+  // Variations
+  const [variations, setVariations] = useState<VariationData[]>([]);
+  const [existingVariations, setExistingVariations] = useState<ProductVariation[]>([]);
+  const [expandedVariation, setExpandedVariation] = useState<number | null>(null);
+
+  // Shipping
+  const [weight, setWeight] = useState(product?.weight?.toString() || "0");
+  const [length, setLength] = useState(product?.length?.toString() || "0");
+  const [width, setWidth] = useState(product?.width?.toString() || "0");
+  const [height, setHeight] = useState(product?.height?.toString() || "0");
+  const [shippingClass, setShippingClass] = useState(product?.shipping_class || "standard");
+
+  // Tax
+  const [gstPercentage, setGstPercentage] = useState(product?.gst_percentage?.toString() || "18");
+  const [taxClass, setTaxClass] = useState(product?.tax_class || "standard");
+
+  // Tags & Labels
+  const [tags, setTags] = useState<string[]>(product?.tags || []);
+  const [newTag, setNewTag] = useState("");
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const [customLabel, setCustomLabel] = useState("");
+
+  // Collapsible sections state
+  const [openSections, setOpenSections] = useState({
+    shortDesc: true,
+    productData: true,
+    longDesc: true,
+    publish: true,
+    productImage: true,
+    gallery: false,
+    categories: true,
+    brands: false,
+    tags: true,
+    labels: true,
+  });
+
+  useEffect(() => {
+    fetchData();
+    if (product) {
+      fetchProductData();
+    }
+  }, [product]);
+
+  const fetchData = async () => {
+    const [categoriesRes, brandsRes] = await Promise.all([
+      supabase.from("categories").select("*").eq("is_active", true).order("name"),
+      supabase.from("brands").select("*").eq("is_active", true).order("name"),
+    ]);
+    if (categoriesRes.data) setCategories(categoriesRes.data);
+    if (brandsRes.data) setBrands(brandsRes.data);
+  };
+
+  const fetchProductData = async () => {
+    if (!product) return;
+    
+    const { data: variationsData } = await supabase
+      .from("product_variations")
+      .select("*")
+      .eq("product_id", product.id);
+    
+    if (variationsData && variationsData.length > 0) {
+      setExistingVariations(variationsData);
+      setProductType("variable");
+      
+      const sizes = [...new Set(variationsData.map(v => v.size).filter(Boolean))] as string[];
+      const colors = [...new Set(variationsData.map(v => v.color).filter(Boolean))] as string[];
+      
+      setAttributes([
+        { name: "Size", values: sizes, usedForVariations: true, visibleOnProduct: true },
+        { name: "Color", values: colors, usedForVariations: true, visibleOnProduct: true },
+      ]);
+      
+      setVariations(variationsData.map(v => ({
+        id: v.id,
+        sku: v.sku || "",
+        size: v.size,
+        color: v.color,
+        color_image: v.color_image || "",
+        stock_quantity: v.stock_quantity || 0,
+        shop_price: Number(v.shop_price),
+        shop_moq: v.shop_moq || 10,
+        retail_price: Number(v.retail_price),
+        retail_moq: v.retail_moq || 1,
+        weight: v.weight || 0,
+        is_active: v.is_active ?? true,
+      })));
+    }
+  };
+
+  const generateSlug = (text: string) => {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  };
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const addAttribute = () => {
+    if (newAttributeName.trim() && !attributes.find(a => a.name.toLowerCase() === newAttributeName.toLowerCase())) {
+      setAttributes(prev => [...prev, { 
+        name: newAttributeName.trim(), 
+        values: [], 
+        usedForVariations: false,
+        visibleOnProduct: true 
+      }]);
+      setNewAttributeName("");
+    }
+  };
+
+  const removeAttribute = (index: number) => {
+    setAttributes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addAttributeValue = (attrIndex: number) => {
+    const attrName = attributes[attrIndex].name;
+    const value = newAttributeValue[attrName]?.trim();
+    if (value && !attributes[attrIndex].values.includes(value)) {
+      setAttributes(prev => prev.map((attr, i) => 
+        i === attrIndex ? { ...attr, values: [...attr.values, value] } : attr
+      ));
+      setNewAttributeValue(prev => ({ ...prev, [attrName]: "" }));
+    }
+  };
+
+  const removeAttributeValue = (attrIndex: number, valueIndex: number) => {
+    setAttributes(prev => prev.map((attr, i) => 
+      i === attrIndex ? { ...attr, values: attr.values.filter((_, vi) => vi !== valueIndex) } : attr
+    ));
+  };
+
+  const generateVariations = () => {
+    const variationAttrs = attributes.filter(a => a.usedForVariations && a.values.length > 0);
+    
+    if (variationAttrs.length === 0) {
+      toast({ title: "No attributes", description: "Add attribute values marked for variations first", variant: "destructive" });
+      return;
+    }
+
+    const sizeAttr = attributes.find(a => a.name === "Size" && a.usedForVariations);
+    const colorAttr = attributes.find(a => a.name === "Color" && a.usedForVariations);
+    
+    const sizes = sizeAttr?.values.length ? sizeAttr.values : [null];
+    const colors = colorAttr?.values.length ? colorAttr.values : [null];
+    
+    const newVariations: VariationData[] = [];
+    
+    sizes.forEach(size => {
+      colors.forEach(color => {
+        const existing = variations.find(v => v.size === size && v.color === color);
+        if (existing) {
+          newVariations.push(existing);
+        } else {
+          newVariations.push({
+            sku: `${sku || "SKU"}-${size || ""}${color ? `-${color}` : ""}`.toUpperCase().replace(/--/g, "-"),
+            size,
+            color,
+            color_image: "",
+            stock_quantity: 0,
+            shop_price: parseFloat(shopPrice) || 0,
+            shop_moq: parseInt(shopMoq) || 10,
+            retail_price: parseFloat(retailPrice) || 0,
+            retail_moq: parseInt(retailMoq) || 1,
+            weight: 0,
+            is_active: true,
+          });
+        }
+      });
+    });
+    
+    setVariations(newVariations);
+    toast({ title: "Variations Generated", description: `${newVariations.length} variations created` });
+  };
+
+  const updateVariation = (index: number, field: keyof VariationData, value: any) => {
+    setVariations(prev => prev.map((v, i) => 
+      i === index ? { ...v, [field]: value } : v
+    ));
+  };
+
+  const removeVariation = (index: number) => {
+    setVariations(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags(prev => [...prev, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (index: number) => {
+    setTags(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleLabel = (label: string) => {
+    setSelectedLabels(prev => 
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+
+  const addCustomLabel = () => {
+    if (customLabel.trim() && !selectedLabels.includes(customLabel.trim().toUpperCase())) {
+      setSelectedLabels(prev => [...prev, customLabel.trim().toUpperCase()]);
+      setCustomLabel("");
+    }
+  };
+
+  const handleSave = async (asDraft = false) => {
+    if (!name.trim()) {
+      toast({ title: "Error", description: "Product name is required", variant: "destructive" });
+      return;
+    }
+
+    if (productType === "simple" && (!shopPrice || !retailPrice)) {
+      toast({ title: "Error", description: "Wholesale and Retail prices are required", variant: "destructive" });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const allImages = featureImage ? [featureImage, ...galleryImages] : galleryImages;
+      const isVariable = productType === "variable";
+      
+      const productData = {
+        name,
+        slug: slug || generateSlug(name),
+        description: description || null,
+        short_description: shortDescription || null,
+        sku: sku || null,
+        category_id: categoryId || null,
+        brand_id: brandId || null,
+        is_active: asDraft ? false : isActive,
+        has_variations: isVariable,
+        images: allImages,
+        features: selectedLabels,
+        tags,
+        shop_price: isVariable ? 0 : parseFloat(shopPrice) || 0,
+        retail_price: isVariable ? 0 : parseFloat(retailPrice) || 0,
+        guest_price: isVariable ? 0 : parseFloat(guestPrice) || 0,
+        regular_price: isVariable ? 0 : parseFloat(regularPrice) || 0,
+        shop_moq: isVariable ? 1 : parseInt(shopMoq) || 10,
+        retail_moq: isVariable ? 1 : parseInt(retailMoq) || 1,
+        stock_quantity: isVariable ? 0 : parseInt(stockQuantity) || 0,
+        weight: parseFloat(weight) || 0,
+        length: parseFloat(length) || 0,
+        width: parseFloat(width) || 0,
+        height: parseFloat(height) || 0,
+        shipping_class: shippingClass,
+        gst_percentage: parseFloat(gstPercentage) || 18,
+        tax_class: taxClass,
+      };
+
+      let productId = product?.id;
+
+      if (product) {
+        const { error } = await supabase
+          .from("products")
+          .update(productData)
+          .eq("id", product.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("products")
+          .insert(productData)
+          .select()
+          .single();
+        if (error) throw error;
+        productId = data.id;
+      }
+
+      // Handle variations
+      if (isVariable && productId) {
+        const existingIds = existingVariations.map(v => v.id);
+        const currentIds = variations.filter(v => v.id).map(v => v.id);
+        const toDelete = existingIds.filter(id => !currentIds.includes(id));
+        
+        if (toDelete.length > 0) {
+          await supabase.from("product_variations").delete().in("id", toDelete);
+        }
+
+        for (const variation of variations) {
+          const variationData = {
+            product_id: productId,
+            sku: variation.sku || null,
+            size: variation.size,
+            color: variation.color,
+            color_image: variation.color_image || null,
+            stock_quantity: variation.stock_quantity,
+            shop_price: variation.shop_price,
+            shop_moq: variation.shop_moq,
+            retail_price: variation.retail_price,
+            retail_moq: variation.retail_moq,
+            weight: variation.weight,
+            is_active: variation.is_active,
+          };
+
+          if (variation.id) {
+            await supabase
+              .from("product_variations")
+              .update(variationData)
+              .eq("id", variation.id);
+          } else {
+            await supabase
+              .from("product_variations")
+              .insert(variationData);
+          }
+        }
+      } else if (!isVariable && productId && existingVariations.length > 0) {
+        await supabase
+          .from("product_variations")
+          .delete()
+          .eq("product_id", productId);
+      }
+
+      toast({ 
+        title: asDraft ? "Draft Saved" : (product ? "Product Updated" : "Product Created"),
+        description: asDraft ? "Product saved as draft" : "Product has been saved successfully." 
+      });
+      onSave();
+    } catch (error: any) {
+      console.error("Error saving product:", error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to save product", 
+        variant: "destructive" 
+      });
+    }
+    setIsSaving(false);
+  };
+
+  // Collapsible Section Component
+  const CollapsibleSection = ({ 
+    id, 
+    title, 
+    children,
+    defaultOpen = true 
+  }: { 
+    id: keyof typeof openSections; 
+    title: string; 
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+  }) => (
+    <Card className="shadow-sm border">
+      <Collapsible open={openSections[id]} onOpenChange={() => toggleSection(id)}>
+        <CollapsibleTrigger className="w-full">
+          <CardHeader className="py-3 px-4 flex flex-row items-center justify-between hover:bg-muted/30 transition-colors">
+            <span className="font-medium text-sm">{title}</span>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              {openSections[id] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0 pb-4 px-4">
+            {children}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="space-y-4"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-semibold">
+          {product ? "Edit Product" : "Add New Product"}
+        </h1>
+      </div>
+
+      <div className="grid lg:grid-cols-4 gap-4">
+        {/* ==================== LEFT COLUMN - Main Content ==================== */}
+        <div className="lg:col-span-3 space-y-4">
+          
+          {/* Product Name */}
+          <Input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (!slug) setSlug(generateSlug(e.target.value));
+            }}
+            placeholder="Product name"
+            className="text-lg h-12"
+          />
+
+          {/* Product Short Description */}
+          <CollapsibleSection id="shortDesc" title="Product short description">
+            <Textarea
+              value={shortDescription}
+              onChange={(e) => setShortDescription(e.target.value)}
+              placeholder="Enter brief product summary..."
+              rows={4}
+              className="resize-y"
+            />
+          </CollapsibleSection>
+
+          {/* ==================== PRODUCT DATA TABS ==================== */}
+          <Card className="shadow-sm border">
+            <Collapsible open={openSections.productData} onOpenChange={() => toggleSection("productData")}>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="py-3 px-4 flex flex-row items-center justify-between hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-sm">Product data —</span>
+                    <Select value={productType} onValueChange={(v: "simple" | "variable") => setProductType(v)}>
+                      <SelectTrigger className="w-[140px] h-8" onClick={(e) => e.stopPropagation()}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="simple">Simple product</SelectItem>
+                        <SelectItem value="variable">Variable product</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    {openSections.productData ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t">
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <div className="flex">
+                      {/* Vertical Tab List */}
+                      <TabsList className="flex flex-col h-auto w-44 rounded-none border-r bg-muted/30 p-0">
+                        <TabsTrigger 
+                          value="general" 
+                          className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-primary data-[state=active]:bg-background px-4 py-3"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-primary mr-2" />
+                          General
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="inventory" 
+                          className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-primary data-[state=active]:bg-background px-4 py-3"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-primary mr-2" />
+                          Inventory
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="shipping" 
+                          className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-primary data-[state=active]:bg-background px-4 py-3"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-primary mr-2" />
+                          Shipping
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="tax" 
+                          className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-primary data-[state=active]:bg-background px-4 py-3"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-primary mr-2" />
+                          Tax / GST
+                        </TabsTrigger>
+                        {productType === "variable" && (
+                          <>
+                            <TabsTrigger 
+                              value="attributes" 
+                              className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-warning data-[state=active]:bg-background px-4 py-3"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-warning mr-2" />
+                              Attributes
+                            </TabsTrigger>
+                            <TabsTrigger 
+                              value="variations" 
+                              className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-warning data-[state=active]:bg-background px-4 py-3"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-warning mr-2" />
+                              Variations
+                            </TabsTrigger>
+                          </>
+                        )}
+                      </TabsList>
+
+                      {/* Tab Content */}
+                      <div className="flex-1 p-4 min-h-[300px]">
+                        {/* ========== GENERAL TAB ========== */}
+                        <TabsContent value="general" className="m-0 space-y-6">
+                          <h3 className="font-semibold text-base border-b pb-2">Pricing & Stock</h3>
+                          
+                          <div className="grid md:grid-cols-3 gap-4">
+                            {/* Wholesale (Shop) Block */}
+                            <div className="rounded-xl border-2 border-shop/30 bg-shop/5 p-4 space-y-4">
+                              <div className="flex items-center gap-2 text-shop font-semibold">
+                                <Store className="h-5 w-5" />
+                                <span>Wholesaler</span>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Regular Price / MRP (₹)</Label>
+                                  <Input
+                                    type="number"
+                                    value={regularPrice}
+                                    placeholder="Set in Buyer section"
+                                    disabled
+                                    className="bg-muted/50 border-shop/30"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Auto-filled from Buyer Regular Price</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Sale Price (₹) *</Label>
+                                  <Input
+                                    type="number"
+                                    value={shopPrice}
+                                    onChange={(e) => setShopPrice(e.target.value)}
+                                    placeholder="0.00"
+                                    className="border-shop/30 focus:border-shop"
+                                    disabled={productType === "variable"}
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Wholesale MOQ *</Label>
+                                  <Input
+                                    type="number"
+                                    value={shopMoq}
+                                    onChange={(e) => setShopMoq(e.target.value)}
+                                    placeholder="10"
+                                    className="border-shop/30 focus:border-shop"
+                                    disabled={productType === "variable"}
+                                  />
+                                  <p className="text-xs text-muted-foreground">Minimum Order Quantity</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Retailer Block */}
+                            <div className="rounded-xl border-2 border-retail/30 bg-retail/5 p-4 space-y-4">
+                              <div className="flex items-center gap-2 text-retail font-semibold">
+                                <ShoppingBag className="h-5 w-5" />
+                                <span>Retailer</span>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Regular Price / MRP (₹)</Label>
+                                  <Input
+                                    type="number"
+                                    value={regularPrice}
+                                    placeholder="Set in Buyer section"
+                                    disabled
+                                    className="bg-muted/50 border-retail/30"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Auto-filled from Buyer Regular Price</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Sale Price (₹) *</Label>
+                                  <Input
+                                    type="number"
+                                    value={retailPrice}
+                                    onChange={(e) => setRetailPrice(e.target.value)}
+                                    placeholder="0.00"
+                                    className="border-retail/30 focus:border-retail"
+                                    disabled={productType === "variable"}
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Retail MOQ *</Label>
+                                  <Input
+                                    type="number"
+                                    value={retailMoq}
+                                    onChange={(e) => setRetailMoq(e.target.value)}
+                                    placeholder="1"
+                                    className="border-retail/30 focus:border-retail"
+                                    disabled={productType === "variable"}
+                                  />
+                                  <p className="text-xs text-muted-foreground">Minimum Order Quantity</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Buyer Block */}
+                            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-4">
+                              <div className="flex items-center gap-2 text-primary font-semibold">
+                                <User className="h-5 w-5" />
+                                <span>Buyer</span>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Regular Price / MRP (₹) *</Label>
+                                  <Input
+                                    type="number"
+                                    value={regularPrice}
+                                    onChange={(e) => setRegularPrice(e.target.value)}
+                                    placeholder="0.00"
+                                    className="border-primary/30 focus:border-primary"
+                                    disabled={productType === "variable"}
+                                  />
+                                  <p className="text-xs text-muted-foreground">Shown as strikethrough MRP for all tiers</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm">Sale Price (₹) *</Label>
+                                  <Input
+                                    type="number"
+                                    value={guestPrice}
+                                    onChange={(e) => setGuestPrice(e.target.value)}
+                                    placeholder="0.00"
+                                    className="border-primary/30 focus:border-primary"
+                                    disabled={productType === "variable"}
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm text-muted-foreground">MOQ</Label>
+                                  <Input
+                                    type="number"
+                                    value="1"
+                                    disabled
+                                    className="bg-muted/50"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Fixed at 1 for individual buyers</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Stock Quantity (for simple products) */}
+                          {productType === "simple" && (
+                            <div className="pt-2">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Boxes className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-medium">Stock Quantity</span>
+                              </div>
+                              <Input
+                                type="number"
+                                value={stockQuantity}
+                                onChange={(e) => setStockQuantity(e.target.value)}
+                                placeholder="0"
+                                className="w-40"
+                              />
+                            </div>
+                          )}
+
+                          {productType === "variable" && (
+                            <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                              💡 For variable products, pricing and stock are set per variation in the <strong>Variations</strong> tab.
+                            </p>
+                          )}
+                        </TabsContent>
+
+                        {/* ========== INVENTORY TAB ========== */}
+                        <TabsContent value="inventory" className="m-0 space-y-4">
+                          <div className="space-y-2">
+                            <Label>SKU (Stock Keeping Unit)</Label>
+                            <Input
+                              value={sku}
+                              onChange={(e) => setSku(e.target.value)}
+                              placeholder="SKU-001"
+                              className="w-64"
+                            />
+                          </div>
+                          
+                          {productType === "simple" && (
+                            <div className="space-y-2">
+                              <Label>Stock Quantity</Label>
+                              <Input
+                                type="number"
+                                value={stockQuantity}
+                                onChange={(e) => setStockQuantity(e.target.value)}
+                                placeholder="0"
+                                className="w-40"
+                              />
+                            </div>
+                          )}
+                          
+                          {productType === "variable" && (
+                            <p className="text-sm text-muted-foreground">
+                              Stock is managed at variation level for variable products.
+                            </p>
+                          )}
+                        </TabsContent>
+
+                        {/* ========== SHIPPING TAB ========== */}
+                        <TabsContent value="shipping" className="m-0 space-y-4">
+                          <div className="space-y-2">
+                            <Label>Weight (kg)</Label>
+                            <Input
+                              type="number"
+                              value={weight}
+                              onChange={(e) => setWeight(e.target.value)}
+                              placeholder="0"
+                              className="w-40"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Dimensions (cm)</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                type="number"
+                                value={length}
+                                onChange={(e) => setLength(e.target.value)}
+                                placeholder="Length"
+                                className="w-28"
+                              />
+                              <Input
+                                type="number"
+                                value={width}
+                                onChange={(e) => setWidth(e.target.value)}
+                                placeholder="Width"
+                                className="w-28"
+                              />
+                              <Input
+                                type="number"
+                                value={height}
+                                onChange={(e) => setHeight(e.target.value)}
+                                placeholder="Height"
+                                className="w-28"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Shipping class</Label>
+                            <Select value={shippingClass} onValueChange={setShippingClass}>
+                              <SelectTrigger className="w-64">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SHIPPING_CLASSES.map(sc => (
+                                  <SelectItem key={sc.value} value={sc.value}>{sc.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TabsContent>
+
+                        {/* ========== TAX TAB ========== */}
+                        <TabsContent value="tax" className="m-0 space-y-4">
+                          <div className="space-y-2">
+                            <Label>GST Percentage (%)</Label>
+                            <Input
+                              type="number"
+                              value={gstPercentage}
+                              onChange={(e) => setGstPercentage(e.target.value)}
+                              placeholder="18"
+                              className="w-40"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Tax class</Label>
+                            <Select value={taxClass} onValueChange={setTaxClass}>
+                              <SelectTrigger className="w-64">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TAX_CLASSES.map(tc => (
+                                  <SelectItem key={tc.value} value={tc.value}>{tc.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TabsContent>
+
+                        {/* ========== ATTRIBUTES TAB ========== */}
+                        {productType === "variable" && (
+                          <TabsContent value="attributes" className="m-0 space-y-4">
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Define attributes like Size, Color etc. Mark them "Used for variations" to create product variants.
+                            </p>
+
+                            {attributes.map((attr, attrIndex) => (
+                              <div key={attr.name} className="border rounded-lg p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="font-semibold">{attr.name}</h4>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => removeAttribute(attrIndex)}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={newAttributeValue[attr.name] || ""}
+                                    onChange={(e) => setNewAttributeValue(prev => ({ 
+                                      ...prev, 
+                                      [attr.name]: e.target.value 
+                                    }))}
+                                    placeholder={`Add value (e.g., ${attr.name === "Size" ? "S, M, L" : attr.name === "Color" ? "Red, Blue" : "Value"})`}
+                                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttributeValue(attrIndex))}
+                                  />
+                                  <Button type="button" variant="outline" size="sm" onClick={() => addAttributeValue(attrIndex)}>
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                {attr.values.length > 0 && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {attr.values.map((value, valueIndex) => (
+                                      <Badge key={value} variant="secondary" className="gap-1 py-1">
+                                        {value}
+                                        <button
+                                          type="button"
+                                          onClick={() => removeAttributeValue(attrIndex, valueIndex)}
+                                          className="ml-1 hover:text-destructive"
+                                        >
+                                          ×
+                                        </button>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-6 pt-2 border-t">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`variations-${attr.name}`}
+                                      checked={attr.usedForVariations}
+                                      onCheckedChange={(checked) => {
+                                        setAttributes(prev => prev.map((a, i) => 
+                                          i === attrIndex ? { ...a, usedForVariations: !!checked } : a
+                                        ));
+                                      }}
+                                    />
+                                    <Label htmlFor={`variations-${attr.name}`} className="text-sm cursor-pointer">
+                                      Used for variations
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`visible-${attr.name}`}
+                                      checked={attr.visibleOnProduct}
+                                      onCheckedChange={(checked) => {
+                                        setAttributes(prev => prev.map((a, i) => 
+                                          i === attrIndex ? { ...a, visibleOnProduct: !!checked } : a
+                                        ));
+                                      }}
+                                    />
+                                    <Label htmlFor={`visible-${attr.name}`} className="text-sm cursor-pointer">
+                                      Visible on product page
+                                    </Label>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Add New Attribute */}
+                            <div className="flex gap-2 pt-2">
+                              <Input
+                                value={newAttributeName}
+                                onChange={(e) => setNewAttributeName(e.target.value)}
+                                placeholder="New attribute name..."
+                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttribute())}
+                              />
+                              <Button type="button" variant="outline" onClick={addAttribute}>
+                                <Plus className="h-4 w-4 mr-1" /> Add
+                              </Button>
+                            </div>
+
+                            <Button 
+                              type="button" 
+                              onClick={generateVariations}
+                              className="w-full mt-4"
+                              variant="default"
+                            >
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Generate Variations from Attributes
+                            </Button>
+                          </TabsContent>
+                        )}
+
+                        {/* ========== VARIATIONS TAB ========== */}
+                        {productType === "variable" && (
+                          <TabsContent value="variations" className="m-0 space-y-4">
+                            {variations.length === 0 ? (
+                              <div className="text-center py-8 text-muted-foreground">
+                                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                                <p>No variations yet.</p>
+                                <p className="text-sm">Add attributes and click "Generate Variations" in the Attributes tab.</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  {variations.length} variation(s) — Click to expand and edit
+                                </p>
+                                
+                                {variations.map((variation, index) => (
+                                  <Collapsible 
+                                    key={index} 
+                                    open={expandedVariation === index}
+                                    onOpenChange={() => setExpandedVariation(expandedVariation === index ? null : index)}
+                                  >
+                                    <div className="border rounded-lg overflow-hidden">
+                                      <CollapsibleTrigger className="w-full flex items-center justify-between p-3 hover:bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                          <span className="font-medium">
+                                            #{index + 1} — 
+                                            {variation.size && <Badge variant="outline" className="ml-2">{variation.size}</Badge>}
+                                            {variation.color && <Badge variant="outline" className="ml-1">{variation.color}</Badge>}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-muted-foreground">
+                                            ₹{variation.shop_price} / ₹{variation.retail_price}
+                                          </span>
+                                          {expandedVariation === index ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                        </div>
+                                      </CollapsibleTrigger>
+                                      
+                                      <CollapsibleContent>
+                                        <div className="p-4 border-t bg-muted/10 space-y-4">
+                                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            <div className="space-y-1.5">
+                                              <Label className="text-xs">SKU</Label>
+                                              <Input
+                                                value={variation.sku}
+                                                onChange={(e) => updateVariation(index, "sku", e.target.value)}
+                                                className="h-9"
+                                              />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                              <Label className="text-xs">Stock Qty</Label>
+                                              <Input
+                                                type="number"
+                                                value={variation.stock_quantity}
+                                                onChange={(e) => updateVariation(index, "stock_quantity", parseInt(e.target.value) || 0)}
+                                                className="h-9"
+                                              />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                              <Label className="text-xs">Variation Image</Label>
+                                              <ImageUpload
+                                                value={variation.color_image}
+                                                onChange={(url) => updateVariation(index, "color_image", url)}
+                                                bucket="product-images"
+                                                compact
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {/* B2B Pricing for Variation */}
+                                          <div className="grid md:grid-cols-2 gap-4">
+                                            {/* Wholesale */}
+                                            <div className="rounded-lg border border-shop/30 bg-shop/5 p-3 space-y-2">
+                                              <span className="text-xs font-semibold text-shop">Wholesale</span>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-1">
+                                                  <Label className="text-xs">Price (₹)</Label>
+                                                  <Input
+                                                    type="number"
+                                                    value={variation.shop_price}
+                                                    onChange={(e) => updateVariation(index, "shop_price", parseFloat(e.target.value) || 0)}
+                                                    className="h-8 text-sm border-shop/30"
+                                                  />
+                                                </div>
+                                                <div className="space-y-1">
+                                                  <Label className="text-xs">MOQ</Label>
+                                                  <Input
+                                                    type="number"
+                                                    value={variation.shop_moq}
+                                                    onChange={(e) => updateVariation(index, "shop_moq", parseInt(e.target.value) || 10)}
+                                                    className="h-8 text-sm border-shop/30"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            {/* Retail */}
+                                            <div className="rounded-lg border border-retail/30 bg-retail/5 p-3 space-y-2">
+                                              <span className="text-xs font-semibold text-retail">Retail</span>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-1">
+                                                  <Label className="text-xs">Price (₹)</Label>
+                                                  <Input
+                                                    type="number"
+                                                    value={variation.retail_price}
+                                                    onChange={(e) => updateVariation(index, "retail_price", parseFloat(e.target.value) || 0)}
+                                                    className="h-8 text-sm border-retail/30"
+                                                  />
+                                                </div>
+                                                <div className="space-y-1">
+                                                  <Label className="text-xs">MOQ</Label>
+                                                  <Input
+                                                    type="number"
+                                                    value={variation.retail_moq}
+                                                    onChange={(e) => updateVariation(index, "retail_moq", parseInt(e.target.value) || 1)}
+                                                    className="h-8 text-sm border-retail/30"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center justify-between pt-2 border-t">
+                                            <div className="flex items-center gap-2">
+                                              <Switch
+                                                checked={variation.is_active}
+                                                onCheckedChange={(checked) => updateVariation(index, "is_active", checked)}
+                                              />
+                                              <Label className="text-sm">Active</Label>
+                                            </div>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              onClick={() => removeVariation(index)}
+                                              className="text-destructive hover:text-destructive"
+                                            >
+                                              <Trash2 className="h-4 w-4 mr-1" /> Remove
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </CollapsibleContent>
+                                    </div>
+                                  </Collapsible>
+                                ))}
+                              </div>
+                            )}
+                          </TabsContent>
+                        )}
+                      </div>
+                    </div>
+                  </Tabs>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
+
+          {/* Product Description (Long) */}
+          <CollapsibleSection id="longDesc" title="Product description">
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter detailed product description..."
+              rows={8}
+              className="resize-y font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground mt-2">Supports markdown formatting</p>
+          </CollapsibleSection>
+        </div>
+
+        {/* ==================== RIGHT COLUMN - Sidebar ==================== */}
+        <div className="space-y-4">
+          
+          {/* Publish Box */}
+          <CollapsibleSection id="publish" title="Publish">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleSave(true)}
+                  disabled={isSaving}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  Draft
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={onClose}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Preview
+                </Button>
+              </div>
+              
+              <div className="text-sm space-y-1.5 py-2 border-y">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="font-medium">{isActive ? "Active" : "Draft"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Visibility:</span>
+                  <span className="font-medium">Public</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="active-toggle" className="text-sm">Active</Label>
+                <Switch
+                  id="active-toggle"
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                />
+              </div>
+
+              <Button 
+                onClick={() => handleSave(false)}
+                disabled={isSaving}
+                className="w-full bg-primary"
+              >
+                {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {product ? "Update" : "Publish"}
+              </Button>
+            </div>
+          </CollapsibleSection>
+
+          {/* Product Image */}
+          <CollapsibleSection id="productImage" title="Product image">
+            <ImageUpload
+              value={featureImage}
+              onChange={setFeatureImage}
+              bucket="product-images"
+            />
+          </CollapsibleSection>
+
+          {/* Product Gallery */}
+          <CollapsibleSection id="gallery" title="Product gallery">
+            <GalleryUpload
+              value={galleryImages}
+              onChange={setGalleryImages}
+              bucket="product-images"
+              maxImages={10}
+            />
+          </CollapsibleSection>
+
+          {/* Product Categories */}
+          <CollapsibleSection id="categories" title="Product categories">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {categories.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No categories available</p>
+              ) : (
+                categories.filter(cat => !cat.parent_id).map(cat => (
+                  <div key={cat.id}>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`cat-${cat.id}`}
+                        checked={categoryId === cat.id}
+                        onCheckedChange={(checked) => setCategoryId(checked ? cat.id : "")}
+                      />
+                      <Label htmlFor={`cat-${cat.id}`} className="text-sm cursor-pointer font-medium">{cat.name}</Label>
+                    </div>
+                    {/* Subcategories */}
+                    {categories.filter(sub => sub.parent_id === cat.id).map(sub => (
+                      <div key={sub.id} className="flex items-center gap-2 ml-5 mt-1">
+                        <Checkbox
+                          id={`cat-${sub.id}`}
+                          checked={categoryId === sub.id}
+                          onCheckedChange={(checked) => setCategoryId(checked ? sub.id : "")}
+                        />
+                        <Label htmlFor={`cat-${sub.id}`} className="text-sm cursor-pointer text-muted-foreground">— {sub.name}</Label>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* Brands */}
+          <CollapsibleSection id="brands" title="Brands">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {brands.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No brands available</p>
+              ) : (
+                brands.map(brand => (
+                  <div key={brand.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`brand-${brand.id}`}
+                      checked={brandId === brand.id}
+                      onCheckedChange={(checked) => setBrandId(checked ? brand.id : "")}
+                    />
+                    <Label htmlFor={`brand-${brand.id}`} className="text-sm cursor-pointer flex items-center gap-2">
+                      {brand.logo_url && (
+                        <img src={brand.logo_url} alt={brand.name} className="w-5 h-5 object-contain" />
+                      )}
+                      {brand.name}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* Product Tags */}
+          <CollapsibleSection id="tags" title="Product tags">
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Add new tag"
+                  className="text-sm"
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {tags.map((tag, i) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                      <button onClick={() => removeTag(i)} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* Product Labels */}
+          <CollapsibleSection id="labels" title="Product Label">
+            <div className="space-y-3">
+              <Input
+                value={customLabel}
+                onChange={(e) => setCustomLabel(e.target.value)}
+                placeholder="e.g., TRENDING, BEST SELLER"
+                className="text-sm"
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomLabel())}
+              />
+              <div className="flex flex-wrap gap-1">
+                {PRODUCT_LABELS.map(label => (
+                  <Badge
+                    key={label}
+                    variant={selectedLabels.includes(label) ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => toggleLabel(label)}
+                  >
+                    {label}
+                  </Badge>
+                ))}
+              </div>
+              {selectedLabels.filter(l => !PRODUCT_LABELS.includes(l)).length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-2 border-t">
+                  {selectedLabels.filter(l => !PRODUCT_LABELS.includes(l)).map(label => (
+                    <Badge key={label} variant="default" className="text-xs">
+                      {label}
+                      <button onClick={() => toggleLabel(label)} className="ml-1">×</button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
