@@ -13,6 +13,8 @@ interface HeroSlide {
   badge_label: string | null;
   cta_text: string | null;
   cta_link: string | null;
+  show_text?: boolean;
+  show_button?: boolean;
 }
 
 interface PromoBanner {
@@ -91,23 +93,32 @@ export function HeroSection() {
               alt={heroSlides[currentSlide]?.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/40 to-transparent" />
+            
+            {(heroSlides[currentSlide]?.show_text !== false || heroSlides[currentSlide]?.show_button !== false) && (
+              <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/40 to-transparent" />
+            )}
             
             <div className="absolute inset-0 flex items-center">
               <div className="container mx-auto px-4">
                 <div className="max-w-xl">
-                  <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-display font-bold text-white mb-1 sm:mb-2 leading-tight line-clamp-1">
-                    {heroSlides[currentSlide]?.title}
-                  </h2>
-                  <p className="text-white/90 text-xs sm:text-sm md:text-base mb-3 sm:mb-4 max-w-md">
-                    {heroSlides[currentSlide]?.subtitle}
-                  </p>
-                  <Link to={heroSlides[currentSlide]?.cta_link || "/products"}>
-                    <Button size="sm" className="bg-accent hover:bg-accent-hover text-accent-foreground shadow-lg h-8 sm:h-9 text-xs sm:text-sm">
-                      {heroSlides[currentSlide]?.cta_text || "Shop Now"}
-                      <ArrowRight className="ml-1.5 h-4 w-4" />
-                    </Button>
-                  </Link>
+                  {heroSlides[currentSlide]?.show_text !== false && (
+                    <>
+                      <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-display font-bold text-white mb-1 sm:mb-2 leading-tight line-clamp-1">
+                        {heroSlides[currentSlide]?.title}
+                      </h2>
+                      <p className="text-white/90 text-xs sm:text-sm md:text-base mb-3 sm:mb-4 max-w-md">
+                        {heroSlides[currentSlide]?.subtitle}
+                      </p>
+                    </>
+                  )}
+                  {heroSlides[currentSlide]?.show_button !== false && (
+                    <Link to={heroSlides[currentSlide]?.cta_link || "/products"}>
+                      <Button size="sm" className="bg-accent hover:bg-accent-hover text-accent-foreground shadow-lg h-8 sm:h-9 text-xs sm:text-sm">
+                        {heroSlides[currentSlide]?.cta_text || "Shop Now"}
+                        <ArrowRight className="ml-1.5 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

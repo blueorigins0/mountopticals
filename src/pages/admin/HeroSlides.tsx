@@ -22,6 +22,8 @@ interface HeroSlide {
   cta_link: string | null;
   sort_order: number | null;
   is_active: boolean | null;
+  show_text: boolean | null;
+  show_button: boolean | null;
 }
 
 export default function AdminHeroSlides() {
@@ -30,7 +32,7 @@ export default function AdminHeroSlides() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<HeroSlide | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState({ title: "", subtitle: "", image_url: "", badge_label: "", cta_text: "Shop Now", cta_link: "/products", sort_order: "0", is_active: true });
+  const [form, setForm] = useState({ title: "", subtitle: "", image_url: "", badge_label: "", cta_text: "Shop Now", cta_link: "/products", sort_order: "0", is_active: true, show_text: true, show_button: true });
   const { toast } = useToast();
 
   const fetchSlides = async () => {
@@ -45,10 +47,10 @@ export default function AdminHeroSlides() {
   const openForm = (slide?: HeroSlide) => {
     if (slide) {
       setEditing(slide);
-      setForm({ title: slide.title, subtitle: slide.subtitle || "", image_url: slide.image_url, badge_label: slide.badge_label || "", cta_text: slide.cta_text || "Shop Now", cta_link: slide.cta_link || "/products", sort_order: String(slide.sort_order || 0), is_active: slide.is_active ?? true });
+      setForm({ title: slide.title, subtitle: slide.subtitle || "", image_url: slide.image_url, badge_label: slide.badge_label || "", cta_text: slide.cta_text || "Shop Now", cta_link: slide.cta_link || "/products", sort_order: String(slide.sort_order || 0), is_active: slide.is_active ?? true, show_text: slide.show_text ?? true, show_button: slide.show_button ?? true });
     } else {
       setEditing(null);
-      setForm({ title: "", subtitle: "", image_url: "", badge_label: "", cta_text: "Shop Now", cta_link: "/products", sort_order: "0", is_active: true });
+      setForm({ title: "", subtitle: "", image_url: "", badge_label: "", cta_text: "Shop Now", cta_link: "/products", sort_order: "0", is_active: true, show_text: true, show_button: true });
     }
     setShowForm(true);
   };
@@ -56,7 +58,7 @@ export default function AdminHeroSlides() {
   const handleSave = async () => {
     if (!form.title || !form.image_url) { toast({ title: "Error", description: "Title and Image are required", variant: "destructive" }); return; }
     setIsSaving(true);
-    const data = { title: form.title, subtitle: form.subtitle || null, image_url: form.image_url, badge_label: form.badge_label || null, cta_text: form.cta_text || "Shop Now", cta_link: form.cta_link || "/products", sort_order: parseInt(form.sort_order) || 0, is_active: form.is_active };
+    const data = { title: form.title, subtitle: form.subtitle || null, image_url: form.image_url, badge_label: form.badge_label || null, cta_text: form.cta_text || "Shop Now", cta_link: form.cta_link || "/products", sort_order: parseInt(form.sort_order) || 0, is_active: form.is_active, show_text: form.show_text, show_button: form.show_button };
     if (editing) {
       await supabase.from("hero_slides").update(data).eq("id", editing.id);
       toast({ title: "Slide Updated" });
@@ -105,6 +107,8 @@ export default function AdminHeroSlides() {
                   <div className="space-y-2"><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={e => setForm(p => ({...p, sort_order: e.target.value}))} /></div>
                 </div>
                 <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={form.is_active} onCheckedChange={c => setForm(p => ({...p, is_active: c}))} /></div>
+                <div className="flex items-center justify-between"><Label>Show Text Overlay</Label><Switch checked={form.show_text} onCheckedChange={c => setForm(p => ({...p, show_text: c}))} /></div>
+                <div className="flex items-center justify-between"><Label>Show CTA Button</Label><Switch checked={form.show_button} onCheckedChange={c => setForm(p => ({...p, show_button: c}))} /></div>
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" onClick={() => setShowForm(false)} className="flex-1">Cancel</Button>
                   <Button onClick={handleSave} disabled={isSaving} className="flex-1 bg-gradient-accent">{isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{editing ? "Update" : "Create"}</Button>
