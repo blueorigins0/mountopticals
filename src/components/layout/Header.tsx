@@ -12,6 +12,7 @@ import { CartSheet } from "@/components/cart/CartSheet";
 import { Badge } from "@/components/ui/badge";
 import { InstantSearch } from "@/components/search/InstantSearch";
 import { supabase } from "@/integrations/supabase/client";
+import { SiteLogo } from "@/components/SiteLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -199,12 +200,7 @@ export function Header() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-accent flex items-center justify-center shadow-sm">
-                <span className="text-base sm:text-xl font-bold text-accent-foreground">V</span>
-              </div>
-              <span className="hidden sm:inline text-base sm:text-xl font-display font-bold text-foreground">
-                Vendor<span className="text-accent">Hub</span>
-              </span>
+              <SiteLogo className="w-8 h-8 sm:w-10 sm:h-10" />
             </Link>
 
             {/* Location Picker */}

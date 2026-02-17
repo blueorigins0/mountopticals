@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { SiteLogo } from "@/components/SiteLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,9 +77,7 @@ export default function Login() {
 
           {/* Logo - Clickable */}
           <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-gradient-accent flex items-center justify-center">
-              <span className="text-xl font-bold text-accent-foreground">B</span>
-            </div>
+            <SiteLogo className="w-10 h-10" />
             <span className="text-xl font-display font-bold text-foreground">
               B2B<span className="text-accent">Market</span>
             </span>

@@ -9,6 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { SiteLogo } from "@/components/SiteLogo";
 
 const quickLinks = [
   { label: "Products", href: "/products" },
@@ -36,9 +37,7 @@ export function Footer() {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-                <span className="text-xl font-bold text-accent-foreground">V</span>
-              </div>
+              <SiteLogo className="w-10 h-10" />
               <span className="text-xl font-display font-bold">
                 Vendor<span className="text-accent">Hub</span>
               </span>
@@ -145,9 +144,7 @@ export function Footer() {
           {/* Company Info - Always visible */}
           <div className="space-y-4 pb-4 border-b border-primary-light">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-                <span className="text-xl font-bold text-accent-foreground">V</span>
-              </div>
+              <SiteLogo className="w-10 h-10" />
               <span className="text-xl font-display font-bold">
                 Vendor<span className="text-accent">Hub</span>
               </span>
