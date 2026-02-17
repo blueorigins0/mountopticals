@@ -611,23 +611,21 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                           <span className="w-2 h-2 rounded-full bg-primary mr-2" />
                           Tax / GST
                         </TabsTrigger>
+                        <TabsTrigger 
+                          value="attributes" 
+                          className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-warning data-[state=active]:bg-background px-4 py-3"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-warning mr-2" />
+                          Attributes
+                        </TabsTrigger>
                         {productType === "variable" && (
-                          <>
-                            <TabsTrigger 
-                              value="attributes" 
-                              className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-warning data-[state=active]:bg-background px-4 py-3"
-                            >
-                              <span className="w-2 h-2 rounded-full bg-warning mr-2" />
-                              Attributes
-                            </TabsTrigger>
-                            <TabsTrigger 
-                              value="variations" 
-                              className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-warning data-[state=active]:bg-background px-4 py-3"
-                            >
-                              <span className="w-2 h-2 rounded-full bg-warning mr-2" />
-                              Variations
-                            </TabsTrigger>
-                          </>
+                          <TabsTrigger 
+                            value="variations" 
+                            className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-warning data-[state=active]:bg-background px-4 py-3"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-warning mr-2" />
+                            Variations
+                          </TabsTrigger>
                         )}
                       </TabsList>
 
@@ -910,59 +908,62 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                         </TabsContent>
 
                         {/* ========== ATTRIBUTES TAB ========== */}
-                        {productType === "variable" && (
-                          <TabsContent value="attributes" className="m-0 space-y-4">
-                            <p className="text-sm text-muted-foreground mb-4">
-                              Define attributes like Size, Color etc. Mark them "Used for variations" to create product variants.
-                            </p>
+                        <TabsContent value="attributes" className="m-0 space-y-4">
+                          <p className="text-sm text-muted-foreground mb-4">
+                            {productType === "variable" 
+                              ? "Define attributes like Size, Color etc. Mark them \"Used for variations\" to create product variants."
+                              : "Add product attributes that will appear on the product page (e.g., Frame Dimensions, Material, etc.)."
+                            }
+                          </p>
 
-                            {attributes.map((attr, attrIndex) => (
-                              <div key={attr.name} className="border rounded-lg p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-semibold">{attr.name}</h4>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={() => removeAttribute(attrIndex)}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                          {attributes.map((attr, attrIndex) => (
+                            <div key={attr.name} className="border rounded-lg p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-semibold">{attr.name}</h4>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => removeAttribute(attrIndex)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <Input
+                                  value={newAttributeValue[attr.name] || ""}
+                                  onChange={(e) => setNewAttributeValue(prev => ({ 
+                                    ...prev, 
+                                    [attr.name]: e.target.value 
+                                  }))}
+                                  placeholder={`Add value (e.g., ${attr.name === "Size" ? "S, M, L" : attr.name === "Color" ? "Red, Blue" : "Value"})`}
+                                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttributeValue(attrIndex))}
+                                />
+                                <Button type="button" variant="outline" size="sm" onClick={() => addAttributeValue(attrIndex)}>
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              {attr.values.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {attr.values.map((value, valueIndex) => (
+                                    <Badge key={value} variant="secondary" className="gap-1 py-1">
+                                      {value}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeAttributeValue(attrIndex, valueIndex)}
+                                        className="ml-1 hover:text-destructive"
+                                      >
+                                        ×
+                                      </button>
+                                    </Badge>
+                                  ))}
                                 </div>
-                                
-                                <div className="flex gap-2">
-                                  <Input
-                                    value={newAttributeValue[attr.name] || ""}
-                                    onChange={(e) => setNewAttributeValue(prev => ({ 
-                                      ...prev, 
-                                      [attr.name]: e.target.value 
-                                    }))}
-                                    placeholder={`Add value (e.g., ${attr.name === "Size" ? "S, M, L" : attr.name === "Color" ? "Red, Blue" : "Value"})`}
-                                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttributeValue(attrIndex))}
-                                  />
-                                  <Button type="button" variant="outline" size="sm" onClick={() => addAttributeValue(attrIndex)}>
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                              )}
 
-                                {attr.values.length > 0 && (
-                                  <div className="flex flex-wrap gap-2">
-                                    {attr.values.map((value, valueIndex) => (
-                                      <Badge key={value} variant="secondary" className="gap-1 py-1">
-                                        {value}
-                                        <button
-                                          type="button"
-                                          onClick={() => removeAttributeValue(attrIndex, valueIndex)}
-                                          className="ml-1 hover:text-destructive"
-                                        >
-                                          ×
-                                        </button>
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-
-                                <div className="flex items-center gap-6 pt-2 border-t">
+                              <div className="flex items-center gap-6 pt-2 border-t">
+                                {productType === "variable" && (
                                   <div className="flex items-center gap-2">
                                     <Checkbox
                                       id={`variations-${attr.name}`}
@@ -977,37 +978,39 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                                       Used for variations
                                     </Label>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id={`visible-${attr.name}`}
-                                      checked={attr.visibleOnProduct}
-                                      onCheckedChange={(checked) => {
-                                        setAttributes(prev => prev.map((a, i) => 
-                                          i === attrIndex ? { ...a, visibleOnProduct: !!checked } : a
-                                        ));
-                                      }}
-                                    />
-                                    <Label htmlFor={`visible-${attr.name}`} className="text-sm cursor-pointer">
-                                      Visible on product page
-                                    </Label>
-                                  </div>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`visible-${attr.name}`}
+                                    checked={attr.visibleOnProduct}
+                                    onCheckedChange={(checked) => {
+                                      setAttributes(prev => prev.map((a, i) => 
+                                        i === attrIndex ? { ...a, visibleOnProduct: !!checked } : a
+                                      ));
+                                    }}
+                                  />
+                                  <Label htmlFor={`visible-${attr.name}`} className="text-sm cursor-pointer">
+                                    Visible on product page
+                                  </Label>
                                 </div>
                               </div>
-                            ))}
-
-                            {/* Add New Attribute */}
-                            <div className="flex gap-2 pt-2">
-                              <Input
-                                value={newAttributeName}
-                                onChange={(e) => setNewAttributeName(e.target.value)}
-                                placeholder="New attribute name..."
-                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttribute())}
-                              />
-                              <Button type="button" variant="outline" onClick={addAttribute}>
-                                <Plus className="h-4 w-4 mr-1" /> Add
-                              </Button>
                             </div>
+                          ))}
 
+                          {/* Add New Attribute */}
+                          <div className="flex gap-2 pt-2">
+                            <Input
+                              value={newAttributeName}
+                              onChange={(e) => setNewAttributeName(e.target.value)}
+                              placeholder="New attribute name..."
+                              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttribute())}
+                            />
+                            <Button type="button" variant="outline" onClick={addAttribute}>
+                              <Plus className="h-4 w-4 mr-1" /> Add
+                            </Button>
+                          </div>
+
+                          {productType === "variable" && (
                             <Button 
                               type="button" 
                               onClick={generateVariations}
@@ -1017,8 +1020,8 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                               <RefreshCw className="h-4 w-4 mr-2" />
                               Generate Variations from Attributes
                             </Button>
-                          </TabsContent>
-                        )}
+                          )}
+                        </TabsContent>
 
                         {/* ========== VARIATIONS TAB ========== */}
                         {productType === "variable" && (

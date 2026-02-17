@@ -621,6 +621,7 @@ export type Database = {
           id: string
           label: string
           product_id: string
+          show_on_page: boolean | null
           sort_order: number | null
           value_image: string | null
           value_text: string
@@ -631,6 +632,7 @@ export type Database = {
           id?: string
           label: string
           product_id: string
+          show_on_page?: boolean | null
           sort_order?: number | null
           value_image?: string | null
           value_text: string
@@ -641,6 +643,7 @@ export type Database = {
           id?: string
           label?: string
           product_id?: string
+          show_on_page?: boolean | null
           sort_order?: number | null
           value_image?: string | null
           value_text?: string

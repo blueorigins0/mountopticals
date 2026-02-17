@@ -22,6 +22,7 @@ import { RelatedProducts } from "@/components/products/RelatedProducts";
 import { RecentProducts } from "@/components/products/RecentProducts";
 import { ProductOffers } from "@/components/products/ProductOffers";
 import { ProductAttributes } from "@/components/products/ProductAttributes";
+import { ProductFeatures } from "@/components/products/ProductFeatures";
 import { ProductTabs } from "@/components/products/ProductTabs";
 import { Input } from "@/components/ui/input";
 import { SEOHead } from "@/components/SEOHead";
@@ -536,46 +537,13 @@ export default function ProductDetail() {
               {/* Product Attributes (e.g. Frame Dimensions) */}
               <ProductAttributes productId={product.id} />
 
-              {/* Features Table */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-foreground">FEATURES</p>
-                </div>
-                <div className="border border-border rounded-lg overflow-hidden text-xs">
-                  <div className="grid grid-cols-2 divide-x divide-border">
-                    <div className="p-2.5 bg-secondary/30">
-                      <span className="text-muted-foreground">Material</span>
-                    </div>
-                    <div className="p-2.5">
-                      <span className="font-medium text-foreground">Carbon Steel</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-border border-t border-border">
-                    <div className="p-2.5 bg-secondary/30">
-                      <span className="text-muted-foreground">Type of Product</span>
-                    </div>
-                    <div className="p-2.5">
-                      <span className="font-medium text-foreground">{product.category?.name || "Industrial Product"}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-border border-t border-border">
-                    <div className="p-2.5 bg-secondary/30">
-                      <span className="text-muted-foreground">Color</span>
-                    </div>
-                    <div className="p-2.5">
-                      <span className="font-medium text-foreground">{selectedColor || "Standard"}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-border border-t border-border">
-                    <div className="p-2.5 bg-secondary/30">
-                      <span className="text-muted-foreground">MOQ</span>
-                    </div>
-                    <div className="p-2.5">
-                      <span className="font-medium text-foreground">{currentMoq} units</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Features - Dynamic from DB attributes */}
+              <ProductFeatures 
+                productId={product.id} 
+                categoryName={product.category?.name}
+                selectedColor={selectedColor}
+                currentMoq={currentMoq}
+              />
             </div>
 
             {/* Right: Sticky Buy Box */}
