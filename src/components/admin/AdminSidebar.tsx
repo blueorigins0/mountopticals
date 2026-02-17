@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   Settings,
   MessageSquare,
   ChevronLeft,
+  ChevronDown,
   LogOut,
   Tag,
   Star,
@@ -22,10 +24,24 @@ import {
   MapPin,
 } from "lucide-react";
 
-const menuItems = [
+interface MenuItem {
+  icon: any;
+  label: string;
+  href: string;
+  children?: { icon: any; label: string; href: string }[];
+}
+
+const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
-  { icon: Package, label: "Products", href: "/admin/products" },
-  { icon: Layers, label: "Categories", href: "/admin/categories" },
+  {
+    icon: Package,
+    label: "Products",
+    href: "/admin/products",
+    children: [
+      { icon: Package, label: "All Products", href: "/admin/products" },
+      { icon: Layers, label: "Categories", href: "/admin/categories" },
+    ],
+  },
   { icon: Users, label: "Users", href: "/admin/users" },
   { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
   { icon: FileText, label: "RFQ Requests", href: "/admin/rfq" },
@@ -48,6 +64,19 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
   const location = useLocation();
+  const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
+
+  const toggleDropdown = (label: string) => {
+    setOpenDropdowns(prev =>
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+
+  const isActive = (href: string) =>
+    location.pathname === href || (href !== "/admin" && location.pathname.startsWith(href));
+
+  const isParentActive = (item: MenuItem) =>
+    item.children?.some(child => isActive(child.href)) || false;
 
   return (
     <aside
@@ -63,17 +92,10 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
             <div className="w-8 h-8 rounded-lg bg-gradient-accent flex items-center justify-center">
               <span className="text-sm font-bold text-accent-foreground">B</span>
             </div>
-            <span className="font-display font-bold text-sidebar-foreground">
-              Admin Panel
-            </span>
+            <span className="font-display font-bold text-sidebar-foreground">Admin Panel</span>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          className="text-sidebar-foreground hover:bg-sidebar-accent"
-        >
+        <Button variant="ghost" size="icon" onClick={onToggle} className="text-sidebar-foreground hover:bg-sidebar-accent">
           <ChevronLeft className={cn("h-5 w-5 transition-transform", collapsed && "rotate-180")} />
         </Button>
       </div>
@@ -82,16 +104,61 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4 px-2">
         <ul className="space-y-1">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.href !== "/admin" && location.pathname.startsWith(item.href));
-            
+            const hasChildren = item.children && item.children.length > 0;
+            const isOpen = openDropdowns.includes(item.label) || isParentActive(item);
+            const active = hasChildren ? isParentActive(item) : isActive(item.href);
+
+            if (hasChildren && !collapsed) {
+              return (
+                <li key={item.label}>
+                  <button
+                    onClick={() => toggleDropdown(item.label)}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                      active
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </div>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+                  </button>
+                  {isOpen && (
+                    <ul className="ml-4 mt-1 space-y-1 border-l-2 border-sidebar-border pl-3">
+                      {item.children!.map((child) => (
+                        <li key={child.href}>
+                          <Link
+                            to={child.href}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                              isActive(child.href)
+                                ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            )}
+                          >
+                            <child.icon className="h-4 w-4 flex-shrink-0" />
+                            <span>{child.label}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            }
+
+            // For collapsed or non-dropdown items
+            const linkHref = hasChildren ? item.children![0].href : item.href;
             return (
-              <li key={item.href}>
+              <li key={item.label}>
                 <Link
-                  to={item.href}
+                  to={linkHref}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                    isActive
+                    active
                       ? "bg-sidebar-primary text-sidebar-primary-foreground"
                       : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}

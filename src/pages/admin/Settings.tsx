@@ -42,6 +42,7 @@ export default function AdminSettings() {
     storeAddress: "123 Business Street, City, Country",
     currency: "INR",
     taxRate: "18",
+    logoUrl: "",
   });
 
   // Notification Settings
@@ -101,6 +102,7 @@ export default function AdminSettings() {
         storeAddress: v.storeAddress || "",
         currency: v.currency || "INR",
         taxRate: v.taxRate || "18",
+        logoUrl: v.logoUrl || "",
       });
     }
 
@@ -236,6 +238,16 @@ export default function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="taxRate">Default Tax Rate (%)</Label>
                 <Input id="taxRate" type="number" value={storeSettings.taxRate} onChange={(e) => setStoreSettings(prev => ({ ...prev, taxRate: e.target.value }))} className="w-32" />
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Label>Store Logo</Label>
+                <p className="text-sm text-muted-foreground">Upload your logo. It will appear in the header, footer, login page, and email templates.</p>
+                <ImageUpload
+                  value={storeSettings.logoUrl}
+                  onChange={(url) => setStoreSettings(prev => ({ ...prev, logoUrl: url }))}
+                  bucket="product-images"
+                />
               </div>
             </CardContent>
           </Card>
