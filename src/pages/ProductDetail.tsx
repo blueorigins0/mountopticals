@@ -21,6 +21,7 @@ import { useCart } from "@/hooks/useCart";
 import { RelatedProducts } from "@/components/products/RelatedProducts";
 import { RecentProducts } from "@/components/products/RecentProducts";
 import { ProductOffers } from "@/components/products/ProductOffers";
+import { ProductAttributes } from "@/components/products/ProductAttributes";
 import { ProductTabs } from "@/components/products/ProductTabs";
 import { Input } from "@/components/ui/input";
 import { SEOHead } from "@/components/SEOHead";
@@ -531,6 +532,9 @@ export default function ProductDetail() {
 
               {/* Available Offers - dynamic from DB */}
               <ProductOffers categoryId={product.category_id} />
+
+              {/* Product Attributes (e.g. Frame Dimensions) */}
+              <ProductAttributes productId={product.id} />
 
               {/* Features Table */}
               <div>

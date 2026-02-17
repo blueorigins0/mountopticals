@@ -593,6 +593,75 @@ export type Database = {
         }
         Relationships: []
       }
+      product_attribute_types: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      product_attribute_values: {
+        Row: {
+          attribute_type_id: string
+          created_at: string
+          id: string
+          label: string
+          product_id: string
+          sort_order: number | null
+          value_image: string | null
+          value_text: string
+        }
+        Insert: {
+          attribute_type_id: string
+          created_at?: string
+          id?: string
+          label: string
+          product_id: string
+          sort_order?: number | null
+          value_image?: string | null
+          value_text: string
+        }
+        Update: {
+          attribute_type_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          product_id?: string
+          sort_order?: number | null
+          value_image?: string | null
+          value_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_values_attribute_type_id_fkey"
+            columns: ["attribute_type_id"]
+            isOneToOne: false
+            referencedRelation: "product_attribute_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attribute_values_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_custom_tabs: {
         Row: {
           created_at: string

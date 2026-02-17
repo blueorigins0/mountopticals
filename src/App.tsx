@@ -42,6 +42,7 @@ import AdminPromoBanners from "./pages/admin/PromoBanners";
 import AdminCoupons from "./pages/admin/Coupons";
 import AdminPincodes from "./pages/admin/Pincodes";
 import AdminHomepageSections from "./pages/admin/HomepageSections";
+import AdminAttributes from "./pages/admin/Attributes";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => (
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="custom-tabs" element={<AdminCustomTabs />} />
               <Route path="homepage-sections" element={<AdminHomepageSections />} />
+              <Route path="attributes" element={<AdminAttributes />} />
             </Route>
 
             {/* Catch-all */}
