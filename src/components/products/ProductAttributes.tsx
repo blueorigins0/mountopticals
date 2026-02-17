@@ -24,6 +24,7 @@ export function ProductAttributes({ productId }: ProductAttributesProps) {
         .from("product_attribute_values")
         .select("*, attribute_type:product_attribute_types(name)")
         .eq("product_id", productId)
+        .eq("show_on_page", true)
         .order("sort_order");
       
       setAttributes((data as any) || []);
@@ -46,15 +47,15 @@ export function ProductAttributes({ productId }: ProductAttributesProps) {
     <div className="space-y-4">
       {Object.entries(grouped).map(([typeName, group]) => (
         <div key={typeName}>
-          <h3 className="text-sm font-semibold text-foreground mb-3">{typeName}</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <h3 className="text-sm font-semibold text-foreground mb-2">{typeName}</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {group.values.map((attr) => (
-              <div key={attr.id} className="flex flex-col items-center text-center bg-card border border-border rounded-lg p-3">
+              <div key={attr.id} className="flex flex-col items-center text-center bg-card border border-border rounded-lg p-2.5">
                 {attr.value_image && (
-                  <img src={attr.value_image} alt={attr.label} className="w-12 h-12 object-contain mb-2" />
+                  <img src={attr.value_image} alt={attr.label} className="w-10 h-10 object-contain mb-1" />
                 )}
-                <span className="text-sm font-bold text-foreground">{attr.value_text}</span>
-                <span className="text-[11px] text-muted-foreground mt-0.5">{attr.label}</span>
+                <span className="text-sm font-bold text-foreground leading-tight">{attr.value_text}</span>
+                <span className="text-[11px] text-muted-foreground">{attr.label}</span>
               </div>
             ))}
           </div>
