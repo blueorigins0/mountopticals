@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, MoreHorizontal, Edit, Trash2, ArrowLeft, Loader2, Tag } from "lucide-react";
+import { Plus, MoreHorizontal, Edit, Trash2, ArrowLeft, Loader2, Tag, Eye, EyeOff } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUpload } from "@/components/admin/ImageUpload";
@@ -43,7 +44,7 @@ export default function AdminAttributes() {
   const [showValueForm, setShowValueForm] = useState(false);
   const [editingType, setEditingType] = useState<AttributeType | null>(null);
   const [typeForm, setTypeForm] = useState({ name: "", slug: "" });
-  const [valueForm, setValueForm] = useState({ product_id: "", attribute_type_id: "", label: "", value_text: "", value_image: "", sort_order: "0" });
+  const [valueForm, setValueForm] = useState({ product_id: "", attribute_type_id: "", label: "", value_text: "", value_image: "", sort_order: "0", show_on_page: true });
   const [editingValue, setEditingValue] = useState<AttributeValue | null>(null);
   const [filterProduct, setFilterProduct] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -96,10 +97,10 @@ export default function AdminAttributes() {
   const openValueForm = (v?: AttributeValue) => {
     if (v) {
       setEditingValue(v);
-      setValueForm({ product_id: v.product_id, attribute_type_id: v.attribute_type_id, label: v.label, value_text: v.value_text, value_image: v.value_image || "", sort_order: String(v.sort_order) });
+      setValueForm({ product_id: v.product_id, attribute_type_id: v.attribute_type_id, label: v.label, value_text: v.value_text, value_image: v.value_image || "", sort_order: String(v.sort_order), show_on_page: (v as any).show_on_page ?? true });
     } else {
       setEditingValue(null);
-      setValueForm({ product_id: "", attribute_type_id: "", label: "", value_text: "", value_image: "", sort_order: "0" });
+      setValueForm({ product_id: "", attribute_type_id: "", label: "", value_text: "", value_image: "", sort_order: "0", show_on_page: true });
     }
     setShowValueForm(true);
   };
@@ -109,7 +110,7 @@ export default function AdminAttributes() {
       toast({ title: "All fields required", variant: "destructive" }); return;
     }
     setIsSaving(true);
-    const data = { product_id: valueForm.product_id, attribute_type_id: valueForm.attribute_type_id, label: valueForm.label, value_text: valueForm.value_text, value_image: valueForm.value_image || null, sort_order: parseInt(valueForm.sort_order) || 0 };
+    const data = { product_id: valueForm.product_id, attribute_type_id: valueForm.attribute_type_id, label: valueForm.label, value_text: valueForm.value_text, value_image: valueForm.value_image || null, sort_order: parseInt(valueForm.sort_order) || 0, show_on_page: valueForm.show_on_page };
     if (editingValue) {
       await supabase.from("product_attribute_values").update(data).eq("id", editingValue.id);
       toast({ title: "Value Updated" });
@@ -180,7 +181,14 @@ export default function AdminAttributes() {
             <div className="space-y-2"><Label>Value Text *</Label><Input value={valueForm.value_text} onChange={e => setValueForm(p => ({...p, value_text: e.target.value}))} placeholder="e.g. 58 mm" /></div>
           </div>
           <div className="space-y-2"><Label>Image (optional)</Label><ImageUpload value={valueForm.value_image} onChange={url => setValueForm(p => ({...p, value_image: url}))} bucket="product-images" /></div>
-          <div className="space-y-2"><Label>Sort Order</Label><Input type="number" value={valueForm.sort_order} onChange={e => setValueForm(p => ({...p, sort_order: e.target.value}))} className="w-32" /></div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label>Sort Order</Label><Input type="number" value={valueForm.sort_order} onChange={e => setValueForm(p => ({...p, sort_order: e.target.value}))} className="w-32" /></div>
+            <div className="flex items-center gap-2 pt-6">
+              <Checkbox id="show_on_page" checked={valueForm.show_on_page} onCheckedChange={(checked) => setValueForm(p => ({...p, show_on_page: !!checked}))} />
+              <Label htmlFor="show_on_page" className="text-sm cursor-pointer">Show in Features section</Label>
+              <span className="text-xs text-muted-foreground">(unchecked = Specifications only)</span>
+            </div>
+          </div>
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowValueForm(false)} className="flex-1">Cancel</Button>
             <Button onClick={handleSaveValue} disabled={isSaving} className="flex-1 bg-gradient-accent">{isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{editingValue ? "Update" : "Create"}</Button>
@@ -247,7 +255,7 @@ export default function AdminAttributes() {
             <p className="text-center text-muted-foreground py-6">No values yet.</p>
           ) : (
             <Table>
-              <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Product</TableHead><TableHead>Type</TableHead><TableHead>Label</TableHead><TableHead>Value</TableHead><TableHead>Order</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Product</TableHead><TableHead>Type</TableHead><TableHead>Label</TableHead><TableHead>Value</TableHead><TableHead>Features</TableHead><TableHead>Order</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
               <TableBody>
                 {filteredValues.map(v => (
                   <TableRow key={v.id}>
@@ -256,6 +264,7 @@ export default function AdminAttributes() {
                     <TableCell className="text-xs">{types.find(t => t.id === v.attribute_type_id)?.name || "—"}</TableCell>
                     <TableCell className="font-medium text-sm">{v.label}</TableCell>
                     <TableCell className="font-bold text-sm">{v.value_text}</TableCell>
+                    <TableCell>{(v as any).show_on_page ? <Eye className="h-4 w-4 text-success" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}</TableCell>
                     <TableCell>{v.sort_order}</TableCell>
                     <TableCell>
                       <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
