@@ -223,12 +223,12 @@ export function Header() {
                   );
                 }
               }}
-              className="hidden sm:flex items-center gap-1 h-10 px-2 text-left hover:bg-secondary/50 border border-transparent hover:border-border rounded-md"
+              className="flex items-center gap-1 h-10 px-2 text-left hover:bg-secondary/50 border border-transparent hover:border-border rounded-md"
             >
               <MapPin className="h-4 w-4 text-foreground flex-shrink-0" />
               <div className="flex flex-col items-start">
-                <span className="text-[10px] text-muted-foreground leading-none">Delivering to</span>
-                <span className="text-xs font-medium text-foreground leading-tight truncate max-w-[100px]">{location}</span>
+                <span className="text-[10px] text-muted-foreground leading-none hidden sm:block">Delivering to</span>
+                <span className="text-xs font-medium text-foreground leading-tight truncate max-w-[80px] sm:max-w-[100px]">{location}</span>
               </div>
             </button>
 
@@ -257,8 +257,8 @@ export function Header() {
             </div>
 
             {/* Cart & User Menu */}
-            <div className="flex items-center gap-1">
-              <div className="flex flex-col items-center justify-center w-14 h-14">
+            <div className="flex items-center gap-0 sm:gap-1">
+              <div className="flex flex-col items-center justify-center w-10 sm:w-14 h-14">
                 <CartSheet />
               </div>
 
@@ -267,14 +267,14 @@ export function Header() {
                 user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                  <button className="flex flex-col items-center justify-center h-14 w-14 hover:bg-secondary/50 rounded-md transition-colors">
+                  <button className="flex flex-col items-center justify-center h-14 w-10 sm:w-14 hover:bg-secondary/50 rounded-md transition-colors">
                         <div className={cn(
-                          "w-6 h-6 rounded-full border-2 flex items-center justify-center mb-0.5",
+                          "w-6 h-6 rounded-full border-2 flex items-center justify-center sm:mb-0.5",
                           role === "shop" ? "border-shop bg-shop/10" : role === "retail" ? "border-retail bg-retail/10" : "border-primary bg-primary/10"
                         )}>
                           <User className="h-3.5 w-3.5 text-foreground" />
                         </div>
-                        <div className="flex items-center gap-0.5">
+                        <div className="hidden sm:flex items-center gap-0.5">
                           <span className="text-[10px] font-medium text-foreground truncate max-w-[50px]">
                             Account
                           </span>
@@ -317,11 +317,11 @@ export function Header() {
                   </DropdownMenu>
                 ) : (
                   <Link to="/login">
-                    <button className="flex flex-col items-center justify-center h-14 w-14 hover:bg-secondary/50 rounded-md transition-colors">
-                      <div className="w-6 h-6 rounded-full border-2 border-foreground flex items-center justify-center mb-0.5">
+                    <button className="flex flex-col items-center justify-center h-14 w-10 sm:w-14 hover:bg-secondary/50 rounded-md transition-colors">
+                      <div className="w-6 h-6 rounded-full border-2 border-foreground flex items-center justify-center sm:mb-0.5">
                         <User className="h-3.5 w-3.5 text-foreground" />
                       </div>
-                      <div className="flex items-center gap-0.5">
+                      <div className="hidden sm:flex items-center gap-0.5">
                         <span className="text-[10px] font-medium text-foreground">Account</span>
                         <ChevronDown className="h-2.5 w-2.5" />
                       </div>
