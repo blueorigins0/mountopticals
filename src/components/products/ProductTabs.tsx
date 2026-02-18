@@ -8,6 +8,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
+interface AttributeValue {
+  id: string;
+  label: string;
+  value_text: string;
+  value_image: string | null;
+  sort_order: number;
+  show_on_page: boolean;
+  attribute_type: { name: string } | null;
+}
+
 interface ProductTabsProps {
   product: {
     id: string;
@@ -46,6 +56,7 @@ export function ProductTabs({ product, selectedSize, selectedColor, currentMoq }
   const { toast } = useToast();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [customTabs, setCustomTabs] = useState<CustomTab[]>([]);
+  const [allAttributes, setAllAttributes] = useState<AttributeValue[]>([]);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
@@ -54,7 +65,7 @@ export function ProductTabs({ product, selectedSize, selectedColor, currentMoq }
 
   useEffect(() => {
     const fetchData = async () => {
-      const [reviewsRes, tabsRes] = await Promise.all([
+      const [reviewsRes, tabsRes, attrsRes] = await Promise.all([
         supabase
           .from("product_reviews")
           .select("id, reviewer_name, rating, review_text, created_at, is_verified")
@@ -65,9 +76,15 @@ export function ProductTabs({ product, selectedSize, selectedColor, currentMoq }
           .select("id, tab_title, tab_content")
           .eq("product_id", product.id)
           .order("sort_order"),
+        supabase
+          .from("product_attribute_values")
+          .select("*, attribute_type:product_attribute_types(name)")
+          .eq("product_id", product.id)
+          .order("sort_order"),
       ]);
       setReviews((reviewsRes.data as Review[]) || []);
       setCustomTabs((tabsRes.data as CustomTab[]) || []);
+      setAllAttributes((attrsRes.data as any) || []);
     };
     fetchData();
   }, [product.id]);
@@ -156,6 +173,10 @@ export function ProductTabs({ product, selectedSize, selectedColor, currentMoq }
             <SpecRow label="Pack Contains" value={`${currentMoq} Units`} border />
             {product.sku && <SpecRow label="SKU" value={product.sku} border />}
             {product.brand && <SpecRow label="Brand" value={product.brand.name} border />}
+            {/* Dynamic attributes from DB */}
+            {allAttributes.map((attr) => (
+              <SpecRow key={attr.id} label={attr.label} value={attr.value_text} border />
+            ))}
           </div>
         </TabsContent>
 
