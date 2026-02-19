@@ -26,12 +26,15 @@ export function ProductFeatures({ productId, categoryName, selectedColor, curren
     const fetch = async () => {
       const { data } = await supabase
         .from("product_attribute_values")
-        .select("*, attribute_type:product_attribute_types(name)")
+        .select("*, attribute_type:product_attribute_types(name, slug)")
         .eq("product_id", productId)
         .eq("show_on_page", true)
         .order("sort_order");
       
-      setAttributes((data as any) || []);
+      // Exclude Frame Dimensions from Features - they show in their own section
+      const filtered = (data || []).filter((d: any) => d.attribute_type?.slug !== "frame-dimensions");
+      
+      setAttributes(filtered as any);
       setLoading(false);
     };
     fetch();

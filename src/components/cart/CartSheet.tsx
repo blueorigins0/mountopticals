@@ -35,7 +35,7 @@ export function CartSheet() {
               </Badge>
             )}
           </div>
-          <span className="text-[10px] text-foreground font-medium mt-0.5">Cart</span>
+          <span className="text-[10px] text-foreground font-medium mt-0.5 hidden sm:block">Cart</span>
         </button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md flex flex-col">

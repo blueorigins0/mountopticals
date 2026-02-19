@@ -7,7 +7,7 @@ interface AttributeValue {
   value_text: string;
   value_image: string | null;
   sort_order: number;
-  attribute_type: { name: string } | null;
+  attribute_type: { name: string; slug: string } | null;
 }
 
 interface ProductAttributesProps {
@@ -20,11 +20,11 @@ export function ProductAttributes({ productId }: ProductAttributesProps) {
 
   useEffect(() => {
     const fetch = async () => {
+      // Fetch Frame Dimensions specifically (show_on_page doesn't matter for this section)
       const { data } = await supabase
         .from("product_attribute_values")
-        .select("*, attribute_type:product_attribute_types(name)")
+        .select("*, attribute_type:product_attribute_types(name, slug)")
         .eq("product_id", productId)
-        .eq("show_on_page", true)
         .order("sort_order");
       
       setAttributes((data as any) || []);
@@ -33,10 +33,13 @@ export function ProductAttributes({ productId }: ProductAttributesProps) {
     fetch();
   }, [productId]);
 
-  if (loading || attributes.length === 0) return null;
+  // Only show Frame Dimensions in this component
+  const frameDimAttrs = attributes.filter(a => (a.attribute_type as any)?.slug === "frame-dimensions");
+
+  if (loading || frameDimAttrs.length === 0) return null;
 
   // Group by attribute type
-  const grouped = attributes.reduce<Record<string, { typeName: string; values: AttributeValue[] }>>((acc, attr) => {
+  const grouped = frameDimAttrs.reduce<Record<string, { typeName: string; values: AttributeValue[] }>>((acc, attr) => {
     const typeName = (attr.attribute_type as any)?.name || "Other";
     if (!acc[typeName]) acc[typeName] = { typeName, values: [] };
     acc[typeName].values.push(attr);
