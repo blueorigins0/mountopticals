@@ -38,20 +38,32 @@ interface Category {
   slug: string;
 }
 
+interface AttributeFilter {
+  typeName: string;
+  typeSlug: string;
+  values: { label: string; value: string; image: string | null; count: number }[];
+}
+
 function FilterSidebar({ 
   categories, 
   selectedCategory, 
-  onCategoryChange 
+  onCategoryChange,
+  attributeFilters,
+  selectedAttributes,
+  onAttributeChange,
 }: { 
   categories: Category[];
   selectedCategory: string;
   onCategoryChange: (id: string) => void;
+  attributeFilters: AttributeFilter[];
+  selectedAttributes: Record<string, string[]>;
+  onAttributeChange: (typeSlug: string, value: string) => void;
 }) {
   return (
     <div className="space-y-6">
       {/* Categories */}
       <div>
-        <h3 className="font-semibold text-foreground mb-3">Categories</h3>
+        <h3 className="font-semibold text-foreground mb-3 text-sm uppercase tracking-wide">Categories</h3>
         <div className="space-y-2">
           <label className="flex items-center gap-2 cursor-pointer">
             <Checkbox 
@@ -63,7 +75,7 @@ function FilterSidebar({
           {categories.map((cat) => (
             <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
               <Checkbox 
-                checked={selectedCategory === cat.id}
+                checked={selectedCategory === cat.id || selectedCategory === cat.slug}
                 onCheckedChange={() => onCategoryChange(cat.id)}
               />
               <span className="text-sm text-muted-foreground">{cat.name}</span>
@@ -72,9 +84,35 @@ function FilterSidebar({
         </div>
       </div>
 
+      {/* Dynamic Attribute Filters (Lenskart-style) */}
+      {attributeFilters.map((filter) => (
+        <div key={filter.typeSlug}>
+          <h3 className="font-semibold text-foreground mb-3 text-sm uppercase tracking-wide">{filter.typeName}</h3>
+          <div className="space-y-2">
+            {filter.values.map((val) => {
+              const isSelected = selectedAttributes[filter.typeSlug]?.includes(val.value);
+              return (
+                <label key={val.value} className="flex items-center gap-2.5 cursor-pointer group">
+                  <Checkbox 
+                    checked={isSelected}
+                    onCheckedChange={() => onAttributeChange(filter.typeSlug, val.value)}
+                  />
+                  {val.image && (
+                    <img src={val.image} alt={val.label} className="w-6 h-6 object-contain rounded" />
+                  )}
+                  <span className={`text-sm ${isSelected ? "text-foreground font-medium" : "text-muted-foreground"} group-hover:text-foreground transition-colors`}>
+                    {val.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
       {/* MOQ Filter */}
       <div>
-        <h3 className="font-semibold text-foreground mb-3">Minimum Order</h3>
+        <h3 className="font-semibold text-foreground mb-3 text-sm uppercase tracking-wide">Minimum Order</h3>
         <div className="space-y-2">
           {["1-50", "51-100", "101-500", "500+"].map((range) => (
             <label key={range} className="flex items-center gap-2 cursor-pointer">
@@ -100,6 +138,8 @@ export default function Products() {
   const [isLoading, setIsLoading] = useState(true);
   const [categoryBanner, setCategoryBanner] = useState<{ name: string; banner_image: string | null } | null>(null);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
+  const [attributeFilters, setAttributeFilters] = useState<AttributeFilter[]>([]);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string[]>>({});
 
   const buyerType: "guest" | "shop" | "retail" = !user ? "guest" : role === "shop" ? "shop" : role === "retail" ? "retail" : "guest";
 
@@ -132,8 +172,6 @@ export default function Products() {
     if (search) setSearchQuery(search);
   }, [searchParams]);
 
-  // Removed handleAddToRFQ - not needed for B2C cards
-
   const clearSearch = () => {
     setSearchQuery("");
     const newParams = new URLSearchParams(searchParams);
@@ -148,6 +186,16 @@ export default function Products() {
     setSearchParams(newParams);
   };
 
+  const handleAttributeChange = (typeSlug: string, value: string) => {
+    setSelectedAttributes(prev => {
+      const current = prev[typeSlug] || [];
+      const updated = current.includes(value) 
+        ? current.filter(v => v !== value)
+        : [...current, value];
+      return { ...prev, [typeSlug]: updated };
+    });
+  };
+
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase
@@ -156,13 +204,51 @@ export default function Products() {
         .eq("is_active", true)
         .is("parent_id", null)
         .order("sort_order");
-      
       if (data) setCategories(data);
     };
     fetchCategories();
   }, []);
 
-  // Fetch category banner and sub-categories when a category is selected
+  // Fetch attribute filters
+  useEffect(() => {
+    const fetchAttributeFilters = async () => {
+      const { data: attrValues } = await supabase
+        .from("product_attribute_values")
+        .select("label, value_text, value_image, attribute_type:product_attribute_types(name, slug)")
+        .order("sort_order");
+
+      if (!attrValues) return;
+
+      // Group by attribute type, skip frame-dimensions
+      const filterMap: Record<string, AttributeFilter> = {};
+      (attrValues as any[]).forEach(av => {
+        const typeName = av.attribute_type?.name;
+        const typeSlug = av.attribute_type?.slug;
+        if (!typeName || !typeSlug || typeSlug === "frame-dimensions") return;
+
+        if (!filterMap[typeSlug]) {
+          filterMap[typeSlug] = { typeName, typeSlug, values: [] };
+        }
+        // Deduplicate by value_text
+        const existing = filterMap[typeSlug].values.find(v => v.value === av.value_text);
+        if (existing) {
+          existing.count++;
+        } else {
+          filterMap[typeSlug].values.push({
+            label: av.value_text,
+            value: av.value_text,
+            image: av.value_image,
+            count: 1,
+          });
+        }
+      });
+
+      setAttributeFilters(Object.values(filterMap));
+    };
+    fetchAttributeFilters();
+  }, []);
+
+  // Fetch category banner and sub-categories
   useEffect(() => {
     const fetchCategoryDetails = async () => {
       if (!selectedCategory || categories.length === 0) {
@@ -217,7 +303,6 @@ export default function Products() {
         `)
         .eq("is_active", true);
 
-      // Filter by category slug or id
       if (selectedCategory) {
         const categoryMatch = categories.find(
           c => c.slug === selectedCategory || c.id === selectedCategory
@@ -227,7 +312,6 @@ export default function Products() {
         }
       }
 
-      // Search filter
       if (searchQuery) {
         query = query.ilike("name", `%${searchQuery}%`);
       }
@@ -235,29 +319,54 @@ export default function Products() {
       const { data, error } = await query;
 
       if (!error && data) {
-        setProducts(data as unknown as Product[]);
+        let filtered = data as unknown as Product[];
+
+        // Filter by selected attributes
+        const activeFilters = Object.entries(selectedAttributes).filter(([_, vals]) => vals.length > 0);
+        if (activeFilters.length > 0) {
+          // Get product IDs that match attribute filters
+          const { data: matchingAttrs } = await supabase
+            .from("product_attribute_values")
+            .select("product_id, value_text, attribute_type:product_attribute_types(slug)");
+
+          if (matchingAttrs) {
+            const productMatches = new Set<string>();
+            const productIds = filtered.map(p => p.id);
+
+            productIds.forEach(pid => {
+              const productAttrs = (matchingAttrs as any[]).filter(a => a.product_id === pid);
+              const matchesAll = activeFilters.every(([typeSlug, selectedVals]) => {
+                return productAttrs.some(a => 
+                  a.attribute_type?.slug === typeSlug && selectedVals.includes(a.value_text)
+                );
+              });
+              if (matchesAll) productMatches.add(pid);
+            });
+
+            filtered = filtered.filter(p => productMatches.has(p.id));
+          }
+        }
+
+        setProducts(filtered);
       }
       setIsLoading(false);
     };
 
     fetchProducts();
-  }, [selectedCategory, searchQuery, categories]);
+  }, [selectedCategory, searchQuery, categories, selectedAttributes]);
 
   // Sort products
   const sortedProducts = [...products].sort((a, b) => {
     switch (sortBy) {
-      case "moq-low":
-        return a.shop_moq - b.shop_moq;
-      case "moq-high":
-        return b.shop_moq - a.shop_moq;
-      case "name-az":
-        return a.name.localeCompare(b.name);
-      case "name-za":
-        return b.name.localeCompare(a.name);
-      default:
-        return 0;
+      case "moq-low": return a.shop_moq - b.shop_moq;
+      case "moq-high": return b.shop_moq - a.shop_moq;
+      case "name-az": return a.name.localeCompare(b.name);
+      case "name-za": return b.name.localeCompare(a.name);
+      default: return 0;
     }
   });
+
+  const hasActiveAttrFilters = Object.values(selectedAttributes).some(v => v.length > 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -315,7 +424,7 @@ export default function Products() {
           )}
 
           {/* Active Filters */}
-          {(searchQuery || selectedCategory) && (
+          {(searchQuery || selectedCategory || hasActiveAttrFilters) && (
             <div className="flex flex-wrap gap-2 mb-4">
               {searchQuery && (
                 <Badge variant="secondary" className="gap-1 pr-1">
@@ -333,13 +442,23 @@ export default function Products() {
                   </button>
                 </Badge>
               )}
+              {Object.entries(selectedAttributes).map(([typeSlug, vals]) =>
+                vals.map(val => (
+                  <Badge key={`${typeSlug}-${val}`} variant="secondary" className="gap-1 pr-1">
+                    {val}
+                    <button onClick={() => handleAttributeChange(typeSlug, val)} className="ml-1 hover:bg-muted rounded p-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))
+              )}
             </div>
           )}
 
           <div className="flex gap-8">
             {/* Desktop Filter Sidebar */}
             <div className="hidden lg:block w-64 flex-shrink-0">
-              <div className="sticky top-36 bg-card rounded-xl p-6 shadow-card border border-border">
+              <div className="sticky top-36 bg-card rounded-xl p-6 shadow-card border border-border max-h-[calc(100vh-160px)] overflow-y-auto">
                 <h2 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
                   <Filter className="h-5 w-5" />
                   Filters
@@ -348,6 +467,9 @@ export default function Products() {
                   categories={categories}
                   selectedCategory={selectedCategory}
                   onCategoryChange={setSelectedCategory}
+                  attributeFilters={attributeFilters}
+                  selectedAttributes={selectedAttributes}
+                  onAttributeChange={handleAttributeChange}
                 />
               </div>
             </div>
@@ -376,11 +498,14 @@ export default function Products() {
                           Filters
                         </SheetTitle>
                       </SheetHeader>
-                      <div className="mt-6">
+                      <div className="mt-6 overflow-y-auto max-h-[calc(100vh-100px)]">
                         <FilterSidebar 
                           categories={categories}
                           selectedCategory={selectedCategory}
                           onCategoryChange={setSelectedCategory}
+                          attributeFilters={attributeFilters}
+                          selectedAttributes={selectedAttributes}
+                          onAttributeChange={handleAttributeChange}
                         />
                       </div>
                     </SheetContent>
@@ -420,10 +545,10 @@ export default function Products() {
 
               {/* Products Grid */}
               {isLoading ? (
-                <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
-                  {[...Array(10)].map((_, i) => (
+                <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
+                  {[...Array(8)].map((_, i) => (
                     <div key={i} className="bg-card rounded-xl overflow-hidden shadow-card border border-border">
-                      <div className="aspect-square bg-muted animate-pulse" />
+                      <div className="aspect-[700/394] bg-muted animate-pulse" />
                       <div className="p-3 sm:p-4 space-y-2">
                         <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
                         <div className="h-3 bg-muted rounded animate-pulse" />
@@ -437,12 +562,12 @@ export default function Products() {
                   <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-xl font-semibold text-foreground mb-2">No Products Found</h3>
                   <p className="text-muted-foreground mb-6">Try adjusting your filters or browse all products.</p>
-                  <Button onClick={() => setSelectedCategory("")} variant="outline">
+                  <Button onClick={() => { setSelectedCategory(""); setSelectedAttributes({}); }} variant="outline">
                     Clear Filters
                   </Button>
                 </div>
               ) : (
-                <div className={`grid gap-3 sm:gap-4 ${viewMode === "grid" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5" : "grid-cols-1"}`}>
+                <div className={`grid gap-3 sm:gap-4 ${viewMode === "grid" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4" : "grid-cols-1"}`}>
                   {sortedProducts.map((product, index) => (
                     <ProductCard key={product.id} product={product} index={index} />
                   ))}

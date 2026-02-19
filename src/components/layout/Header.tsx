@@ -200,7 +200,7 @@ export function Header() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <SiteLogo className="w-8 h-8 sm:w-10 sm:h-10" />
+              <SiteLogo className="h-9 sm:h-11 w-auto" />
             </Link>
 
             {/* Location Picker */}

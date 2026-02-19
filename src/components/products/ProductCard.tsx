@@ -70,7 +70,7 @@ export function ProductCard({ product, index = 0, className = "" }: ProductCardP
       <Link to={`/product/${product.slug}`} className="group block h-full">
         <div className="bg-white rounded-[5px] border border-border overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] transition-all duration-300 h-full flex flex-col relative">
           {/* Image */}
-          <div className="relative aspect-square overflow-hidden bg-[#f5f5f5]">
+          <div className="relative aspect-[700/394] overflow-hidden bg-[#f5f5f5]">
             <img
               src={product.images?.[0] || "/placeholder.svg"}
               alt={product.name}
