@@ -393,9 +393,9 @@ export default function ProductDetail() {
           </nav>
 
           {/* Main Product Section */}
-          <div className="grid md:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* Left: Image Gallery */}
-            <div className="md:col-span-4">
+            <div className="md:col-span-4 w-full">
               <div className="md:sticky md:top-32 space-y-3">
                 {/* Main Image */}
                 <div className="relative bg-card rounded-lg overflow-hidden border border-border">
@@ -683,36 +683,42 @@ export default function ProductDetail() {
           </div>
 
           {/* Trust Badges Row - icon top, text bottom on mobile */}
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 bg-card rounded-lg border border-border p-4 mt-6">
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Shield className="h-5 w-5 text-foreground" />
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 bg-card rounded-lg border border-border p-4 mt-6">
+            <div className="flex flex-col items-center text-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
+                <Shield className="h-5 w-5 text-accent" />
               </div>
-              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Warranty as per brand</span>
+              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Brand Warranty</span>
             </div>
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-foreground" />
+            <div className="flex flex-col items-center text-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-success" />
               </div>
               <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">100% Original</span>
             </div>
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Zap className="h-5 w-5 text-foreground" />
+            <div className="flex flex-col items-center text-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
+                <Zap className="h-5 w-5 text-warning" />
               </div>
-              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Secure payments</span>
+              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Secure Payment</span>
             </div>
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Award className="h-5 w-5 text-foreground" />
+            <div className="flex flex-col items-center text-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
+                <Award className="h-5 w-5 text-primary" />
               </div>
-              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Buyer protection</span>
+              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Buyer Protection</span>
             </div>
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Star className="h-5 w-5 text-foreground" />
+            <div className="flex flex-col items-center text-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
+                <Star className="h-5 w-5 text-accent" />
               </div>
               <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Top Brands</span>
+            </div>
+            <div className="flex flex-col items-center text-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center">
+                <Truck className="h-5 w-5 text-success" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight">Fast Delivery</span>
             </div>
           </div>
 

@@ -144,12 +144,16 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   const [stockQuantity, setStockQuantity] = useState(product?.stock_quantity?.toString() || "0");
 
   // Attributes
-  const [attributes, setAttributes] = useState<Attribute[]>([
-    { name: "Size", values: [], usedForVariations: true, visibleOnProduct: true },
-    { name: "Color", values: [], usedForVariations: true, visibleOnProduct: true },
-  ]);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [newAttributeValue, setNewAttributeValue] = useState<{ [key: string]: string }>({});
   const [newAttributeName, setNewAttributeName] = useState("");
+  const [existingAttrTypes, setExistingAttrTypes] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [selectedExistingAttr, setSelectedExistingAttr] = useState("");
+
+  // Frame Dimensions
+  const [fdTypeId, setFdTypeId] = useState<string | null>(null);
+  const [fdValues, setFdValues] = useState<Record<string, { value: string; image: string; id?: string }>>({});
+  const [isSavingFd, setIsSavingFd] = useState(false);
 
   // Variations
   const [variations, setVariations] = useState<VariationData[]>([]);
@@ -194,23 +198,38 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
     }
   }, [product]);
 
+  const FRAME_DIMENSION_FIELDS = [
+    { label: "Lens Width", defaultImage: "" },
+    { label: "Bridge Width", defaultImage: "" },
+    { label: "Temple Length", defaultImage: "" },
+    { label: "Lens Height", defaultImage: "" },
+  ];
+
   const fetchData = async () => {
-    const [categoriesRes, brandsRes] = await Promise.all([
+    const [categoriesRes, brandsRes, attrTypesRes] = await Promise.all([
       supabase.from("categories").select("*").eq("is_active", true).order("name"),
       supabase.from("brands").select("*").eq("is_active", true).order("name"),
+      supabase.from("product_attribute_types").select("*").order("name"),
     ]);
     if (categoriesRes.data) setCategories(categoriesRes.data);
     if (brandsRes.data) setBrands(brandsRes.data);
+    if (attrTypesRes.data) {
+      const types = attrTypesRes.data as { id: string; name: string; slug: string }[];
+      setExistingAttrTypes(types.filter(t => t.slug !== "frame-dimensions"));
+      const fdType = types.find(t => t.slug === "frame-dimensions");
+      setFdTypeId(fdType?.id || null);
+    }
   };
 
   const fetchProductData = async () => {
     if (!product) return;
     
-    const { data: variationsData } = await supabase
-      .from("product_variations")
-      .select("*")
-      .eq("product_id", product.id);
+    const [variationsRes, attrValuesRes] = await Promise.all([
+      supabase.from("product_variations").select("*").eq("product_id", product.id),
+      supabase.from("product_attribute_values").select("*, attribute_type:product_attribute_types(name, slug)").eq("product_id", product.id).order("sort_order"),
+    ]);
     
+    const variationsData = variationsRes.data;
     if (variationsData && variationsData.length > 0) {
       setExistingVariations(variationsData);
       setProductType("variable");
@@ -218,10 +237,10 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
       const sizes = [...new Set(variationsData.map(v => v.size).filter(Boolean))] as string[];
       const colors = [...new Set(variationsData.map(v => v.color).filter(Boolean))] as string[];
       
-      setAttributes([
-        { name: "Size", values: sizes, usedForVariations: true, visibleOnProduct: true },
-        { name: "Color", values: colors, usedForVariations: true, visibleOnProduct: true },
-      ]);
+      const loadedAttrs: Attribute[] = [];
+      if (sizes.length > 0) loadedAttrs.push({ name: "Size", values: sizes, usedForVariations: true, visibleOnProduct: true });
+      if (colors.length > 0) loadedAttrs.push({ name: "Color", values: colors, usedForVariations: true, visibleOnProduct: true });
+      setAttributes(loadedAttrs);
       
       setVariations(variationsData.map(v => ({
         id: v.id,
@@ -238,6 +257,48 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
         is_active: v.is_active ?? true,
       })));
     }
+
+    // Load existing attribute values (non-frame-dimensions) into attributes state
+    if (attrValuesRes.data) {
+      const attrValues = attrValuesRes.data as any[];
+      const nonFdAttrs = attrValues.filter(av => (av.attribute_type as any)?.slug !== "frame-dimensions");
+      
+      // Group by attribute type name
+      const attrMap: Record<string, Attribute> = {};
+      nonFdAttrs.forEach(av => {
+        const typeName = (av.attribute_type as any)?.name;
+        if (!typeName) return;
+        if (!attrMap[typeName]) {
+          attrMap[typeName] = { name: typeName, values: [], usedForVariations: false, visibleOnProduct: av.show_on_page ?? true };
+        }
+        if (!attrMap[typeName].values.includes(av.value_text)) {
+          attrMap[typeName].values.push(av.value_text);
+        }
+      });
+      
+      // Merge with existing variation attrs
+      setAttributes(prev => {
+        const merged = [...prev];
+        Object.values(attrMap).forEach(attr => {
+          const existing = merged.find(a => a.name === attr.name);
+          if (!existing) merged.push(attr);
+        });
+        return merged;
+      });
+
+      // Load frame dimensions
+      const fdAttrs = attrValues.filter(av => (av.attribute_type as any)?.slug === "frame-dimensions");
+      if (fdAttrs.length > 0) {
+        const map: Record<string, { value: string; image: string; id?: string }> = {};
+        FRAME_DIMENSION_FIELDS.forEach(f => {
+          const existing = fdAttrs.find((d: any) => d.label === f.label);
+          map[f.label] = existing
+            ? { value: existing.value_text, image: existing.value_image || "", id: existing.id }
+            : { value: "", image: f.defaultImage };
+        });
+        setFdValues(map);
+      }
+    }
   };
 
   const generateSlug = (text: string) => {
@@ -249,15 +310,43 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   };
 
   const addAttribute = () => {
-    if (newAttributeName.trim() && !attributes.find(a => a.name.toLowerCase() === newAttributeName.toLowerCase())) {
+    const nameToAdd = newAttributeName.trim();
+    if (nameToAdd && !attributes.find(a => a.name.toLowerCase() === nameToAdd.toLowerCase())) {
       setAttributes(prev => [...prev, { 
-        name: newAttributeName.trim(), 
+        name: nameToAdd, 
         values: [], 
         usedForVariations: false,
         visibleOnProduct: true 
       }]);
       setNewAttributeName("");
     }
+  };
+
+  const addExistingAttribute = () => {
+    if (!selectedExistingAttr) return;
+    const attrType = existingAttrTypes.find(t => t.id === selectedExistingAttr);
+    if (!attrType) return;
+    if (attributes.find(a => a.name.toLowerCase() === attrType.name.toLowerCase())) {
+      toast({ title: "Attribute already added", variant: "destructive" });
+      return;
+    }
+    
+    // Fetch existing values for this attribute type across all products for reuse
+    const fetchExistingValues = async () => {
+      const { data } = await supabase
+        .from("product_attribute_values")
+        .select("value_text")
+        .eq("attribute_type_id", attrType.id);
+      const uniqueVals = [...new Set((data || []).map((d: any) => d.value_text))];
+      setAttributes(prev => [...prev, {
+        name: attrType.name,
+        values: uniqueVals,
+        usedForVariations: false,
+        visibleOnProduct: true,
+      }]);
+    };
+    fetchExistingValues();
+    setSelectedExistingAttr("");
   };
 
   const removeAttribute = (index: number) => {
@@ -465,6 +554,80 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
           .eq("product_id", productId);
       }
 
+      // Save product attributes (non-variation, non-frame-dimension)
+      if (productId) {
+        // Delete existing non-fd attributes for this product
+        const { data: existingAttrs } = await supabase
+          .from("product_attribute_values")
+          .select("id, attribute_type:product_attribute_types(slug)")
+          .eq("product_id", productId);
+        
+        const nonFdExisting = (existingAttrs || []).filter((a: any) => (a.attribute_type as any)?.slug !== "frame-dimensions");
+        if (nonFdExisting.length > 0) {
+          await supabase.from("product_attribute_values").delete().in("id", nonFdExisting.map((a: any) => a.id));
+        }
+
+        // Insert new attribute values
+        for (const attr of attributes) {
+          if (attr.usedForVariations && (attr.name === "Size" || attr.name === "Color")) continue; // Skip variation attrs
+          if (attr.values.length === 0) continue;
+          
+          // Find or create attribute type
+          let typeId: string | null = null;
+          const existingType = existingAttrTypes.find(t => t.name.toLowerCase() === attr.name.toLowerCase());
+          if (existingType) {
+            typeId = existingType.id;
+          } else {
+            const slug = attr.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            const { data: newType } = await supabase.from("product_attribute_types").insert({ name: attr.name, slug }).select().single();
+            if (newType) typeId = newType.id;
+          }
+          
+          if (typeId) {
+            for (let i = 0; i < attr.values.length; i++) {
+              await supabase.from("product_attribute_values").insert({
+                product_id: productId,
+                attribute_type_id: typeId,
+                label: attr.name,
+                value_text: attr.values[i],
+                sort_order: i,
+                show_on_page: attr.visibleOnProduct,
+              });
+            }
+          }
+        }
+
+        // Save frame dimensions
+        if (Object.keys(fdValues).length > 0) {
+          let fdTid = fdTypeId;
+          if (!fdTid) {
+            const { data } = await supabase.from("product_attribute_types").insert({ name: "Frame Dimensions", slug: "frame-dimensions" }).select().single();
+            if (data) { fdTid = data.id; setFdTypeId(data.id); }
+          }
+          if (fdTid) {
+            for (let i = 0; i < FRAME_DIMENSION_FIELDS.length; i++) {
+              const field = FRAME_DIMENSION_FIELDS[i];
+              const val = fdValues[field.label];
+              if (!val?.value) continue;
+              const fdData = {
+                product_id: productId,
+                attribute_type_id: fdTid,
+                label: field.label,
+                value_text: val.value,
+                value_image: val.image || null,
+                sort_order: i,
+                show_on_page: false,
+              };
+              if (val.id) {
+                await supabase.from("product_attribute_values").update(fdData).eq("id", val.id);
+              } else {
+                await supabase.from("product_attribute_values").insert(fdData);
+              }
+            }
+          }
+        }
+      }
+
       toast({ 
         title: asDraft ? "Draft Saved" : (product ? "Product Updated" : "Product Created"),
         description: asDraft ? "Product saved as draft" : "Product has been saved successfully." 
@@ -617,6 +780,13 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                         >
                           <span className="w-2 h-2 rounded-full bg-warning mr-2" />
                           Attributes
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="frame-dimensions" 
+                          className="justify-start w-full rounded-none border-l-2 border-transparent data-[state=active]:border-l-accent data-[state=active]:bg-background px-4 py-3"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-accent mr-2" />
+                          Frame Dimensions
                         </TabsTrigger>
                         {productType === "variable" && (
                           <TabsTrigger 
@@ -912,7 +1082,7 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                           <p className="text-sm text-muted-foreground mb-4">
                             {productType === "variable" 
                               ? "Define attributes like Size, Color etc. Mark them \"Used for variations\" to create product variants."
-                              : "Add product attributes that will appear on the product page (e.g., Frame Dimensions, Material, etc.)."
+                              : "Add product attributes for filters and product page display."
                             }
                           </p>
 
@@ -990,23 +1160,44 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                                     }}
                                   />
                                   <Label htmlFor={`visible-${attr.name}`} className="text-sm cursor-pointer">
-                                    Visible on product page
+                                    Show in Features
                                   </Label>
                                 </div>
                               </div>
                             </div>
                           ))}
 
-                          {/* Add New Attribute */}
-                          <div className="flex gap-2 pt-2">
+                          {/* Add Existing Attribute */}
+                          {existingAttrTypes.length > 0 && (
+                            <div className="flex gap-2 pt-2 border-t">
+                              <Select value={selectedExistingAttr} onValueChange={setSelectedExistingAttr}>
+                                <SelectTrigger className="flex-1">
+                                  <SelectValue placeholder="Select existing attribute..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {existingAttrTypes
+                                    .filter(t => !attributes.find(a => a.name.toLowerCase() === t.name.toLowerCase()))
+                                    .map(t => (
+                                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <Button type="button" variant="outline" onClick={addExistingAttribute}>
+                                <Plus className="h-4 w-4 mr-1" /> Add
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Add New Custom Attribute */}
+                          <div className="flex gap-2">
                             <Input
                               value={newAttributeName}
                               onChange={(e) => setNewAttributeName(e.target.value)}
-                              placeholder="New attribute name..."
+                              placeholder="Or create new attribute..."
                               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAttribute())}
                             />
                             <Button type="button" variant="outline" onClick={addAttribute}>
-                              <Plus className="h-4 w-4 mr-1" /> Add
+                              <Plus className="h-4 w-4 mr-1" /> Create
                             </Button>
                           </div>
 
@@ -1021,6 +1212,48 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                               Generate Variations from Attributes
                             </Button>
                           )}
+                        </TabsContent>
+
+                        {/* ========== FRAME DIMENSIONS TAB ========== */}
+                        <TabsContent value="frame-dimensions" className="m-0 space-y-4">
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Enter frame dimension values for eyewear products. Images are pre-configured from the Attributes page.
+                          </p>
+                          <div className="grid grid-cols-2 gap-4">
+                            {FRAME_DIMENSION_FIELDS.map((field) => (
+                              <div key={field.label} className="border rounded-lg p-4 space-y-2 text-center">
+                                {fdValues[field.label]?.image && (
+                                  <img src={fdValues[field.label].image} alt={field.label} className="w-12 h-12 object-contain mx-auto" />
+                                )}
+                                <Label className="text-xs font-medium">{field.label}</Label>
+                                <Input
+                                  value={fdValues[field.label]?.value || ""}
+                                  onChange={(e) => setFdValues(prev => ({
+                                    ...prev,
+                                    [field.label]: { ...prev[field.label], value: e.target.value }
+                                  }))}
+                                  placeholder="e.g. 52mm"
+                                  className="text-center h-9"
+                                />
+                                {!fdValues[field.label]?.image && (
+                                  <div className="pt-1">
+                                    <ImageUpload
+                                      value={fdValues[field.label]?.image || ""}
+                                      onChange={(url) => setFdValues(prev => ({
+                                        ...prev,
+                                        [field.label]: { ...prev[field.label], image: url }
+                                      }))}
+                                      bucket="product-images"
+                                      compact
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Frame dimensions are saved automatically when you save the product.
+                          </p>
                         </TabsContent>
 
                         {/* ========== VARIATIONS TAB ========== */}

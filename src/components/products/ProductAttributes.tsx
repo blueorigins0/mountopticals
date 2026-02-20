@@ -51,7 +51,7 @@ export function ProductAttributes({ productId }: ProductAttributesProps) {
       {Object.entries(grouped).map(([typeName, group]) => (
         <div key={typeName}>
           <h3 className="text-sm font-semibold text-foreground mb-2">{typeName}</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {group.values.map((attr) => (
               <div key={attr.id} className="flex flex-col items-center text-center bg-card border border-border rounded-lg p-2.5">
                 {attr.value_image && (

@@ -65,7 +65,7 @@ export function BottomNavigation() {
             )}
           >
             <Grid3X3 className="h-5 w-5 flex-shrink-0" />
-            <span className="truncate">Categories</span>
+            <span className="truncate">Shop</span>
           </Link>
 
           {/* All Menu */}
