@@ -208,7 +208,7 @@ export function Footer() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="contact" className="border-primary-light">
+            <AccordionItem value="contact" className="border-primary-light border-b-0">
               <AccordionTrigger className="text-primary-foreground hover:text-accent py-3">
                 <span className="font-semibold">Contact Us</span>
               </AccordionTrigger>

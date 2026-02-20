@@ -379,7 +379,7 @@ export default function Products() {
         <div className="container mx-auto px-4">
           {/* Category Banner */}
           {categoryBanner?.banner_image && selectedCategory ? (
-            <div className="relative h-[250px] rounded-lg overflow-hidden mb-6">
+            <div className="relative h-[140px] sm:h-[250px] rounded-lg overflow-hidden mb-6">
               <img src={categoryBanner.banner_image} alt={categoryBanner.name} className="w-full h-full object-cover" />
             </div>
           ) : !selectedCategory ? (
