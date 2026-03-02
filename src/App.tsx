@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
+import ARTryOn from "./pages/ARTryOn";
 import RFQ from "./pages/RFQ";
 import Checkout from "./pages/Checkout";
 import Chat from "./pages/Chat";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/products" element={<Products />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/ar-tryon/:productId" element={<ARTryOn />} />
             <Route path="/rfq" element={<RFQ />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/chat" element={<Chat />} />
