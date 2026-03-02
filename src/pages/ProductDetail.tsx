@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -130,6 +130,7 @@ function DeliveryChecker() {
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -404,7 +405,20 @@ export default function ProductDetail() {
                     alt={product.name}
                     className="w-full aspect-square object-contain"
                   />
-                  
+                  {/* AR Try-On floating button */}
+                  <button
+                    onClick={() => navigate(`/ar-tryon/${product.id}`)}
+                    className="absolute bottom-3 right-3 flex flex-col items-center gap-0.5 bg-black/70 backdrop-blur-sm text-white rounded-xl px-3 py-2 hover:bg-black/80 transition-colors shadow-lg"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="8" cy="11" r="3"/>
+                      <circle cx="16" cy="11" r="3"/>
+                      <path d="M11 11h2"/>
+                      <path d="M3 11c0-1 .5-2 1.5-2.5"/>
+                      <path d="M20.5 8.5C21.5 9 22 10 22 11"/>
+                    </svg>
+                    <span className="text-[9px] font-bold tracking-wide">3D Try On</span>
+                  </button>
                 </div>
 
                 {/* Thumbnail Gallery */}
