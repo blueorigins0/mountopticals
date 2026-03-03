@@ -170,27 +170,33 @@ export default function ARTryOn() {
           if (results.faceLandmarks?.length && glassesImgRef.current) {
             const landmarks = results.faceLandmarks[0];
 
-            // Landmarks are in un-mirrored space, so mirror the x
+            // Landmarks are in un-mirrored space. Convert to mirrored canvas
+            // while keeping semantic left/right points correct to avoid 180° flips.
             const leftEyeOuter = landmarks[33];
             const rightEyeOuter = landmarks[263];
+            const bridgePoint = landmarks[168];
 
-            // Mirror x coordinates to match the mirrored canvas
-            const lx = (1 - leftEyeOuter.x) * canvas.width;
-            const rx = (1 - rightEyeOuter.x) * canvas.width;
-            const ly = leftEyeOuter.y * canvas.height;
-            const ry = rightEyeOuter.y * canvas.height;
+            const leftX = (1 - rightEyeOuter.x) * canvas.width;
+            const leftY = rightEyeOuter.y * canvas.height;
+            const rightX = (1 - leftEyeOuter.x) * canvas.width;
+            const rightY = leftEyeOuter.y * canvas.height;
 
-            const eyeDistance = Math.sqrt((rx - lx) ** 2 + (ry - ly) ** 2);
-            const glassesWidth = eyeDistance * 1.6;
+            const eyeDistance = Math.hypot(rightX - leftX, rightY - leftY);
+            const glassesWidth = eyeDistance * 1.5;
 
-            // Use aspect ratio from original image but cap the height
-            // For a front-view glasses image, use natural aspect ratio
+            // Use natural image aspect ratio with a conservative cap for realistic fit
             const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
-            const glassesHeight = glassesWidth * Math.min(naturalAspect, 0.55);
+            const glassesHeight = glassesWidth * Math.min(naturalAspect, 0.52);
 
-            const centerX = (lx + rx) / 2;
-            const centerY = (ly + ry) / 2;
-            const angle = Math.atan2(ry - ly, rx - lx);
+            const centerX = (leftX + rightX) / 2;
+            const eyesMidY = (leftY + rightY) / 2;
+            const bridgeY = bridgePoint.y * canvas.height;
+            const centerY = eyesMidY + (bridgeY - eyesMidY) * 0.35;
+
+            let angle = Math.atan2(rightY - leftY, rightX - leftX);
+            // Guard against occasional mirrored-angle inversion.
+            if (angle > Math.PI / 2) angle -= Math.PI;
+            if (angle < -Math.PI / 2) angle += Math.PI;
 
             // Draw glasses naturally on the already-mirrored canvas
             ctx.save();
@@ -199,7 +205,7 @@ export default function ARTryOn() {
             ctx.drawImage(
               glassesImgRef.current,
               -glassesWidth / 2,
-              -glassesHeight / 2 - glassesHeight * 0.08,
+              -glassesHeight / 2 - glassesHeight * 0.04,
               glassesWidth,
               glassesHeight
             );
