@@ -192,12 +192,10 @@ export default function ARTryOn() {
             const centerY = (ly + ry) / 2;
             const angle = Math.atan2(ry - ly, rx - lx);
 
-            // Draw glasses - mirror the image horizontally so it appears correct on mirrored video
+            // Draw glasses naturally on the already-mirrored canvas
             ctx.save();
             ctx.translate(centerX, centerY);
             ctx.rotate(angle);
-            // Flip glasses horizontally to match the mirrored video
-            ctx.scale(-1, 1);
             ctx.drawImage(
               glassesImgRef.current,
               -glassesWidth / 2,
