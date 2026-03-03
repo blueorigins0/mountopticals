@@ -870,6 +870,8 @@ export type Database = {
       }
       products: {
         Row: {
+          ar_image: string | null
+          ar_model_url: string | null
           brand_id: string | null
           category_id: string | null
           created_at: string
@@ -903,6 +905,8 @@ export type Database = {
           width: number | null
         }
         Insert: {
+          ar_image?: string | null
+          ar_model_url?: string | null
           brand_id?: string | null
           category_id?: string | null
           created_at?: string
@@ -936,6 +940,8 @@ export type Database = {
           width?: number | null
         }
         Update: {
+          ar_image?: string | null
+          ar_model_url?: string | null
           brand_id?: string | null
           category_id?: string | null
           created_at?: string
