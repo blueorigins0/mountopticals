@@ -182,11 +182,12 @@ export default function ARTryOn() {
             const rightY = leftEyeOuter.y * canvas.height;
 
             const eyeDistance = Math.hypot(rightX - leftX, rightY - leftY);
-            const glassesWidth = eyeDistance * 1.5;
+            // Wider multiplier so temples (arms) extend toward the ears
+            const glassesWidth = eyeDistance * 2.1;
 
-            // Use natural image aspect ratio with a conservative cap for realistic fit
+            // Use natural aspect ratio of the product image — no cap, so temples stay visible
             const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
-            const glassesHeight = glassesWidth * Math.min(naturalAspect, 0.52);
+            const glassesHeight = glassesWidth * naturalAspect;
 
             const centerX = (leftX + rightX) / 2;
             const eyesMidY = (leftY + rightY) / 2;
