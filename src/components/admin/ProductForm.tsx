@@ -133,6 +133,8 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   // Images
   const [featureImage, setFeatureImage] = useState(product?.images?.[0] || "");
   const [galleryImages, setGalleryImages] = useState<string[]>(product?.images?.slice(1) || []);
+  const [arImage, setArImage] = useState((product as any)?.ar_image || "");
+  const [arModelUrl, setArModelUrl] = useState((product as any)?.ar_model_url || "");
 
   // Simple Product Pricing (3-Tier)
   const [shopPrice, setShopPrice] = useState(product?.shop_price?.toString() || "");
@@ -185,6 +187,7 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
     publish: true,
     productImage: true,
     gallery: false,
+    arAssets: false,
     categories: true,
     brands: false,
     tags: true,
@@ -490,7 +493,9 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
         shipping_class: shippingClass,
         gst_percentage: parseFloat(gstPercentage) || 18,
         tax_class: taxClass,
-      };
+        ar_image: arImage || null,
+        ar_model_url: arModelUrl || null,
+      } as any;
 
       let productId = product?.id;
 
@@ -1499,6 +1504,30 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
               bucket="product-images"
               maxImages={10}
             />
+          </CollapsibleSection>
+
+          {/* AR Try-On Assets */}
+          <CollapsibleSection id="arAssets" title="AR Try-On Assets">
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">AR Image (Front-facing transparent PNG)</Label>
+                <p className="text-xs text-muted-foreground mb-2">Upload a front-view frame image without temples for realistic 2D AR overlay</p>
+                <ImageUpload
+                  value={arImage}
+                  onChange={setArImage}
+                  bucket="product-images"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">3D Model URL (GLB/GLTF)</Label>
+                <p className="text-xs text-muted-foreground mb-2">Paste URL to a 3D model file for full 3D AR try-on experience</p>
+                <Input
+                  value={arModelUrl}
+                  onChange={(e) => setArModelUrl(e.target.value)}
+                  placeholder="https://example.com/model.glb"
+                />
+              </div>
+            </div>
           </CollapsibleSection>
 
           {/* Product Categories */}

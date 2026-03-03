@@ -14,6 +14,8 @@ interface Product {
   guest_price: number;
   retail_price: number;
   regular_price: number;
+  ar_image: string | null;
+  ar_model_url: string | null;
 }
 
 type MediaTab = "tryon" | "photos" | "videos" | "360";
@@ -43,21 +45,22 @@ export default function ARTryOn() {
       if (!productId) return;
       const { data } = await supabase
         .from("products")
-        .select("id, name, slug, images, guest_price, retail_price, regular_price")
+        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url")
         .eq("id", productId)
         .maybeSingle();
-      if (data) setProduct(data as Product);
+      if (data) setProduct(data as unknown as Product);
       setLoading(false);
     };
     fetchProduct();
   }, [productId]);
 
-  // Load glasses image
+  // Load glasses image — prefer ar_image (front-facing cutout) over product photo
   useEffect(() => {
-    if (!product?.images?.[0]) return;
+    const arSrc = product?.ar_image || product?.images?.[0];
+    if (!arSrc) return;
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = product.images[0];
+    img.src = arSrc;
     img.onload = () => {
       glassesImgRef.current = img;
     };
@@ -182,12 +185,13 @@ export default function ARTryOn() {
             const rightY = leftEyeOuter.y * canvas.height;
 
             const eyeDistance = Math.hypot(rightX - leftX, rightY - leftY);
-            // Wider multiplier so temples (arms) extend toward the ears
-            const glassesWidth = eyeDistance * 2.1;
+            // If ar_image is a dedicated front-facing cutout, use wider; else tighter for product photo
+            const hasArImage = !!product?.ar_image;
+            const glassesWidth = eyeDistance * (hasArImage ? 2.1 : 1.8);
 
-            // Use natural aspect ratio of the product image — no cap, so temples stay visible
+            // Cap aspect ratio for product photos so temples (dandi) are cropped; no cap for ar_image
             const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
-            const glassesHeight = glassesWidth * naturalAspect;
+            const glassesHeight = glassesWidth * (hasArImage ? naturalAspect : Math.min(naturalAspect, 0.45));
 
             const centerX = (leftX + rightX) / 2;
             const eyesMidY = (leftY + rightY) / 2;
