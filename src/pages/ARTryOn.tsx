@@ -1,11 +1,22 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CameraOff, RotateCcw, ShoppingCart, ImageIcon, Video, RotateCw, Loader2, Box } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  CameraOff,
+  RotateCcw,
+  ShoppingCart,
+  ImageIcon,
+  Video,
+  RotateCw,
+  Heart,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/hooks/useCart";
 import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
+const FaceTracker3D = lazy(() => import("@/components/ar/FaceTracker3D"));
 const ModelViewer = lazy(() => import("@/components/ar/ModelViewer"));
 
 interface Product {
@@ -20,7 +31,7 @@ interface Product {
   ar_model_url: string | null;
 }
 
-type MediaTab = "tryon" | "3d" | "photos" | "videos" | "360";
+type MediaTab = "tryon" | "photos" | "videos" | "360";
 
 export default function ARTryOn() {
   const { productId } = useParams();
@@ -34,12 +45,16 @@ export default function ARTryOn() {
   const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null);
   const [modelLoading, setModelLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<MediaTab>("tryon");
+  const [videoDims, setVideoDims] = useState({ w: 0, h: 0 });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
   const glassesImgRef = useRef<HTMLImageElement | null>(null);
+  const landmarksRef = useRef<any[] | null>(null);
+
+  const has3DModel = !!product?.ar_model_url;
 
   // Load product
   useEffect(() => {
@@ -56,8 +71,9 @@ export default function ARTryOn() {
     fetchProduct();
   }, [productId]);
 
-  // Load glasses image — prefer ar_image (front-facing cutout) over product photo
+  // Load glasses image for 2D fallback only
   useEffect(() => {
+    if (has3DModel) return;
     const arSrc = product?.ar_image || product?.images?.[0];
     if (!arSrc) return;
     const img = new Image();
@@ -66,7 +82,7 @@ export default function ARTryOn() {
     img.onload = () => {
       glassesImgRef.current = img;
     };
-  }, [product]);
+  }, [product, has3DModel]);
 
   // Initialize MediaPipe FaceLandmarker
   useEffect(() => {
@@ -77,7 +93,8 @@ export default function ARTryOn() {
         );
         const landmarker = await FaceLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
             delegate: "GPU",
           },
           runningMode: "VIDEO",
@@ -94,7 +111,8 @@ export default function ARTryOn() {
           );
           const landmarker = await FaceLandmarker.createFromOptions(vision, {
             baseOptions: {
-              modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+              modelAssetPath:
+                "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
               delegate: "CPU",
             },
             runningMode: "VIDEO",
@@ -140,9 +158,10 @@ export default function ARTryOn() {
       videoRef.current.srcObject = null;
     }
     setCameraActive(false);
+    landmarksRef.current = null;
   }, []);
 
-  // Render loop - FIXED: no double-mirror, glasses drawn correctly on mirrored video
+  // Render loop
   useEffect(() => {
     if (!cameraActive || !faceLandmarker || !videoRef.current || !canvasRef.current) return;
 
@@ -159,7 +178,16 @@ export default function ARTryOn() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      // Mirror the entire canvas for selfie view
+      // Update dims for 3D overlay
+      if (video.videoWidth && video.videoHeight) {
+        setVideoDims((prev) =>
+          prev.w !== video.videoWidth || prev.h !== video.videoHeight
+            ? { w: video.videoWidth, h: video.videoHeight }
+            : prev
+        );
+      }
+
+      // Mirror video
       ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
@@ -169,54 +197,54 @@ export default function ARTryOn() {
       if (now !== lastTime) {
         lastTime = now;
         try {
-          // Detect on UN-mirrored video feed
           const results = faceLandmarker.detectForVideo(video, now);
 
-          if (results.faceLandmarks?.length && glassesImgRef.current) {
+          if (results.faceLandmarks?.length) {
             const landmarks = results.faceLandmarks[0];
 
-            // Landmarks are in un-mirrored space. Convert to mirrored canvas
-            // while keeping semantic left/right points correct to avoid 180° flips.
-            const leftEyeOuter = landmarks[33];
-            const rightEyeOuter = landmarks[263];
-            const bridgePoint = landmarks[168];
+            // Store for 3D overlay
+            landmarksRef.current = landmarks;
 
-            const leftX = (1 - rightEyeOuter.x) * canvas.width;
-            const leftY = rightEyeOuter.y * canvas.height;
-            const rightX = (1 - leftEyeOuter.x) * canvas.width;
-            const rightY = leftEyeOuter.y * canvas.height;
+            // 2D fallback: draw glasses on canvas when no 3D model
+            if (!has3DModel && glassesImgRef.current) {
+              const leftEyeOuter = landmarks[33];
+              const rightEyeOuter = landmarks[263];
+              const bridgePoint = landmarks[168];
 
-            const eyeDistance = Math.hypot(rightX - leftX, rightY - leftY);
-            // If ar_image is a dedicated front-facing cutout, use wider; else tighter for product photo
-            const hasArImage = !!product?.ar_image;
-            const glassesWidth = eyeDistance * (hasArImage ? 2.1 : 1.8);
+              const leftX = (1 - rightEyeOuter.x) * canvas.width;
+              const leftY = rightEyeOuter.y * canvas.height;
+              const rightX = (1 - leftEyeOuter.x) * canvas.width;
+              const rightY = leftEyeOuter.y * canvas.height;
 
-            // Cap aspect ratio for product photos so temples (dandi) are cropped; no cap for ar_image
-            const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
-            const glassesHeight = glassesWidth * (hasArImage ? naturalAspect : Math.min(naturalAspect, 0.45));
+              const eyeDistance = Math.hypot(rightX - leftX, rightY - leftY);
+              const hasArImage = !!product?.ar_image;
+              const glassesWidth = eyeDistance * (hasArImage ? 2.1 : 1.8);
+              const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
+              const glassesHeight = glassesWidth * (hasArImage ? naturalAspect : Math.min(naturalAspect, 0.45));
 
-            const centerX = (leftX + rightX) / 2;
-            const eyesMidY = (leftY + rightY) / 2;
-            const bridgeY = bridgePoint.y * canvas.height;
-            const centerY = eyesMidY + (bridgeY - eyesMidY) * 0.35;
+              const centerX = (leftX + rightX) / 2;
+              const eyesMidY = (leftY + rightY) / 2;
+              const bridgeY = bridgePoint.y * canvas.height;
+              const centerY = eyesMidY + (bridgeY - eyesMidY) * 0.35;
 
-            let angle = Math.atan2(rightY - leftY, rightX - leftX);
-            // Guard against occasional mirrored-angle inversion.
-            if (angle > Math.PI / 2) angle -= Math.PI;
-            if (angle < -Math.PI / 2) angle += Math.PI;
+              let angle = Math.atan2(rightY - leftY, rightX - leftX);
+              if (angle > Math.PI / 2) angle -= Math.PI;
+              if (angle < -Math.PI / 2) angle += Math.PI;
 
-            // Draw glasses naturally on the already-mirrored canvas
-            ctx.save();
-            ctx.translate(centerX, centerY);
-            ctx.rotate(angle);
-            ctx.drawImage(
-              glassesImgRef.current,
-              -glassesWidth / 2,
-              -glassesHeight / 2 - glassesHeight * 0.04,
-              glassesWidth,
-              glassesHeight
-            );
-            ctx.restore();
+              ctx.save();
+              ctx.translate(centerX, centerY);
+              ctx.rotate(angle);
+              ctx.drawImage(
+                glassesImgRef.current,
+                -glassesWidth / 2,
+                -glassesHeight / 2 - glassesHeight * 0.04,
+                glassesWidth,
+                glassesHeight
+              );
+              ctx.restore();
+            }
+          } else {
+            landmarksRef.current = null;
           }
         } catch {
           // Skip frame
@@ -241,7 +269,7 @@ export default function ARTryOn() {
       }
       video.removeEventListener("playing", onPlaying);
     };
-  }, [cameraActive, faceLandmarker]);
+  }, [cameraActive, faceLandmarker, has3DModel]);
 
   useEffect(() => {
     return () => stopCamera();
@@ -256,49 +284,37 @@ export default function ARTryOn() {
   const price = product?.retail_price || 0;
   const discount = mrp > 0 && price < mrp ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
-  const has3DModel = !!product?.ar_model_url;
-
-  const tabs: { key: MediaTab; label: string; icon: React.ReactNode }[] = [
-    { key: "tryon", label: "Try On", icon: <Camera className="h-4 w-4" /> },
-    ...(has3DModel ? [{ key: "3d" as MediaTab, label: "3D View", icon: <Box className="h-4 w-4" /> }] : []),
-    { key: "photos", label: "Photos", icon: <ImageIcon className="h-4 w-4" /> },
-    { key: "videos", label: "Videos", icon: <Video className="h-4 w-4" /> },
-    { key: "360", label: "360°", icon: <RotateCw className="h-4 w-4" /> },
+  const tabs: { key: MediaTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { key: "photos", label: "Photos", icon: ImageIcon },
+    { key: "videos", label: "Videos", icon: Video },
+    { key: "360", label: "360 View", icon: RotateCw },
+    { key: "tryon", label: "3D Try On", icon: Camera },
   ];
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/80 backdrop-blur-sm z-10">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-full bg-white/10 text-white">
+      {/* Floating top bar */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white"
+        >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-white font-semibold text-sm">3D Try On</h1>
-        <div className="w-9" />
-      </div>
-
-      {/* Media Tabs */}
-      <div className="flex items-center justify-center gap-1 px-4 py-2 bg-black/60">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => {
-              setActiveTab(tab.key);
-              if (tab.key !== "tryon" && cameraActive) stopCamera();
-            }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all ${
-              activeTab === tab.key
-                ? "bg-white text-black"
-                : "bg-white/10 text-white/70 hover:bg-white/20"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
+        <div className="flex items-center gap-2">
+          <button className="p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white">
+            <Heart className="h-5 w-5" />
           </button>
-        ))}
+          <button
+            onClick={handleAddToCart}
+            className="p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white"
+          >
+            <ShoppingCart className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main content area */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {activeTab === "tryon" && (
           <>
@@ -313,7 +329,11 @@ export default function ARTryOn() {
                   <>
                     <CameraOff className="h-16 w-16 text-white/40" />
                     <p className="text-white/70 text-sm">{cameraError}</p>
-                    <Button onClick={startCamera} variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                    <Button
+                      onClick={startCamera}
+                      variant="outline"
+                      className="border-white/30 text-white hover:bg-white/10"
+                    >
                       <RotateCcw className="h-4 w-4 mr-2" /> Retry
                     </Button>
                   </>
@@ -322,7 +342,7 @@ export default function ARTryOn() {
                     <div className="w-24 h-24 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center">
                       <Camera className="h-10 w-10 text-white/60" />
                     </div>
-                    <p className="text-white text-lg font-semibold">Virtual Try-On</p>
+                    <p className="text-white text-lg font-semibold">3D Try On</p>
                     <p className="text-white/60 text-sm max-w-xs">
                       See how this eyewear looks on you using your camera
                     </p>
@@ -343,8 +363,21 @@ export default function ARTryOn() {
               className={`w-full h-full object-contain ${cameraActive ? "block" : "hidden"}`}
             />
 
+            {/* 3D GLB overlay on camera feed */}
+            {cameraActive && has3DModel && videoDims.w > 0 && (
+              <Suspense fallback={null}>
+                <FaceTracker3D
+                  modelUrl={product!.ar_model_url!}
+                  landmarksRef={landmarksRef}
+                  canvasWidth={videoDims.w}
+                  canvasHeight={videoDims.h}
+                />
+              </Suspense>
+            )}
+
+            {/* Camera controls */}
             {cameraActive && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20">
                 <button
                   onClick={stopCamera}
                   className="p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white border border-white/20"
@@ -356,21 +389,10 @@ export default function ARTryOn() {
           </>
         )}
 
-        {activeTab === "3d" && product?.ar_model_url && (
-          <Suspense fallback={
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-10 w-10 text-white animate-spin" />
-              <p className="text-white/60 text-sm">Loading 3D Model...</p>
-            </div>
-          }>
-            <ModelViewer modelUrl={product.ar_model_url} />
-          </Suspense>
-        )}
-
         {activeTab === "photos" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6">
+          <div className="flex flex-col items-center gap-4 text-center px-6 w-full">
             {product?.images?.length ? (
-              <div className="grid grid-cols-2 gap-2 p-4 max-w-md">
+              <div className="grid grid-cols-2 gap-2 p-4 max-w-md w-full">
                 {product.images.map((img, i) => (
                   <div key={i} className="bg-white/10 rounded-lg overflow-hidden aspect-square">
                     <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-contain" />
@@ -403,8 +425,8 @@ export default function ARTryOn() {
 
       {/* Bottom product card */}
       {product && (
-        <div className="bg-white rounded-t-2xl p-4 flex items-center gap-4 shadow-lg">
-          <div className="w-20 h-16 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
+        <div className="bg-white p-3 flex items-center gap-3">
+          <div className="w-20 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
             <img
               src={product.images?.[0] || "/placeholder.svg"}
               alt={product.name}
@@ -425,13 +447,36 @@ export default function ARTryOn() {
           </div>
           <Button
             onClick={handleAddToCart}
-            className="bg-accent hover:bg-accent/90 text-white font-bold text-xs px-4 h-10 rounded-lg flex-shrink-0"
+            className="bg-accent hover:bg-accent/90 text-white font-bold text-xs px-4 h-9 rounded-lg flex-shrink-0"
           >
-            <ShoppingCart className="h-4 w-4 mr-1.5" />
             Add to Cart
           </Button>
         </div>
       )}
+
+      {/* Bottom tabs - Lenskart style */}
+      <div className="bg-gray-900 flex items-center justify-around py-1.5 px-1">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key !== "tryon" && cameraActive) stopCamera();
+              }}
+              className={`flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all ${
+                activeTab === tab.key
+                  ? "bg-white/15 text-white"
+                  : "text-white/50"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-tight">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
