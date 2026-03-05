@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CameraOff, RotateCcw, ShoppingCart, ImageIcon, Video, RotateCw } from "lucide-react";
+import { ArrowLeft, Camera, CameraOff, RotateCcw, ShoppingCart, ImageIcon, Video, RotateCw, Loader2, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/hooks/useCart";
 import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+
+const ModelViewer = lazy(() => import("@/components/ar/ModelViewer"));
 
 interface Product {
   id: string;
@@ -18,7 +20,7 @@ interface Product {
   ar_model_url: string | null;
 }
 
-type MediaTab = "tryon" | "photos" | "videos" | "360";
+type MediaTab = "tryon" | "3d" | "photos" | "videos" | "360";
 
 export default function ARTryOn() {
   const { productId } = useParams();
@@ -254,8 +256,11 @@ export default function ARTryOn() {
   const price = product?.retail_price || 0;
   const discount = mrp > 0 && price < mrp ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
+  const has3DModel = !!product?.ar_model_url;
+
   const tabs: { key: MediaTab; label: string; icon: React.ReactNode }[] = [
     { key: "tryon", label: "Try On", icon: <Camera className="h-4 w-4" /> },
+    ...(has3DModel ? [{ key: "3d" as MediaTab, label: "3D View", icon: <Box className="h-4 w-4" /> }] : []),
     { key: "photos", label: "Photos", icon: <ImageIcon className="h-4 w-4" /> },
     { key: "videos", label: "Videos", icon: <Video className="h-4 w-4" /> },
     { key: "360", label: "360°", icon: <RotateCw className="h-4 w-4" /> },
@@ -349,6 +354,17 @@ export default function ARTryOn() {
               </div>
             )}
           </>
+        )}
+
+        {activeTab === "3d" && product?.ar_model_url && (
+          <Suspense fallback={
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-10 w-10 text-white animate-spin" />
+              <p className="text-white/60 text-sm">Loading 3D Model...</p>
+            </div>
+          }>
+            <ModelViewer modelUrl={product.ar_model_url} />
+          </Suspense>
         )}
 
         {activeTab === "photos" && (
