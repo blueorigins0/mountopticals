@@ -1519,13 +1519,54 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium">3D Model URL (GLB/GLTF)</Label>
-                <p className="text-xs text-muted-foreground mb-2">Paste URL to a 3D model file for full 3D AR try-on experience</p>
-                <Input
-                  value={arModelUrl}
-                  onChange={(e) => setArModelUrl(e.target.value)}
-                  placeholder="https://example.com/model.glb"
-                />
+                <Label className="text-sm font-medium">3D Model (GLB/GLTF)</Label>
+                <p className="text-xs text-muted-foreground mb-2">Upload a 3D model file or paste URL for full 3D AR try-on experience</p>
+                {arModelUrl && (
+                  <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-md">
+                    <span className="text-xs text-foreground truncate flex-1">{arModelUrl}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setArModelUrl("")}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <input
+                      type="file"
+                      accept=".glb,.gltf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 20 * 1024 * 1024) {
+                          toast({ title: "File too large", description: "Max 20MB allowed", variant: "destructive" });
+                          return;
+                        }
+                        try {
+                          const ext = file.name.split('.').pop();
+                          const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                          const { error } = await supabase.storage.from("product-images").upload(fileName, file);
+                          if (error) throw error;
+                          const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(fileName);
+                          setArModelUrl(urlData.publicUrl);
+                          toast({ title: "3D Model uploaded!" });
+                        } catch (err: any) {
+                          toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+                        }
+                      }}
+                    />
+                    <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Upload GLB/GLTF</span>
+                  </label>
+                  <div className="flex gap-1">
+                    <Input
+                      value={arModelUrl}
+                      onChange={(e) => setArModelUrl(e.target.value)}
+                      placeholder="https://example.com/model.glb"
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </CollapsibleSection>
