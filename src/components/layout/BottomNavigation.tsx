@@ -35,8 +35,8 @@ export function BottomNavigation() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Hide on admin pages
-  if (location.pathname.startsWith("/admin")) return null;
+  // Hide on admin and AR try-on pages
+  if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/ar-tryon/")) return null;
 
   const visibleCategories = categories.slice(0, 8);
   const remainingCategories = categories.slice(8);
