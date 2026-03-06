@@ -32,25 +32,54 @@ function TrackedGlasses({
   const groupRef = useRef<THREE.Group>(null);
   const modelLoadedNotifiedRef = useRef(false);
   const smoothedPosition = useRef(new THREE.Vector3());
+  const targetPosition = useRef(new THREE.Vector3());
   const smoothedScale = useRef(1);
 
   const { normalizedScene, baseModelWidth } = useMemo(() => {
-    const cloned = scene.clone(true);
-    cloned.updateMatrixWorld(true);
+    const rotationCandidates = [
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: Math.PI / 2 },
+      { x: 0, y: 0, z: -Math.PI / 2 },
+      { x: Math.PI / 2, y: 0, z: 0 },
+      { x: -Math.PI / 2, y: 0, z: 0 },
+      { x: 0, y: Math.PI / 2, z: 0 },
+      { x: 0, y: -Math.PI / 2, z: 0 },
+    ];
 
-    const box = new THREE.Box3().setFromObject(cloned);
-    const size = new THREE.Vector3();
-    const center = new THREE.Vector3();
+    let bestScene: THREE.Object3D | null = null;
+    let bestSize = new THREE.Vector3(1, 1, 1);
+    let bestScore = -Infinity;
 
-    box.getSize(size);
-    box.getCenter(center);
+    for (const candidate of rotationCandidates) {
+      const candidateScene = scene.clone(true);
+      candidateScene.rotation.set(candidate.x, candidate.y, candidate.z);
+      candidateScene.updateMatrixWorld(true);
 
-    cloned.position.sub(center);
+      const box = new THREE.Box3().setFromObject(candidateScene);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
 
-    const computedWidth = Math.max(size.x, size.y * 0.82, 0.001);
+      candidateScene.position.sub(center);
+      candidateScene.updateMatrixWorld(true);
+
+      const widthHeightRatio = size.x / Math.max(size.y, 0.001);
+      const depthPenalty = size.z / Math.max(size.x, 0.001);
+      const score = widthHeightRatio - depthPenalty * 0.45;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestScene = candidateScene;
+        bestSize = size;
+      }
+    }
+
+    const finalScene = bestScene ?? scene.clone(true);
+    const computedWidth = Math.max(bestSize.x, bestSize.y * 0.9, 0.001);
 
     return {
-      normalizedScene: cloned,
+      normalizedScene: finalScene,
       baseModelWidth: computedWidth,
     };
   }, [scene]);
@@ -93,7 +122,7 @@ function TrackedGlasses({
     const centerX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
     const centerY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
 
-    const targetWidth = eyeDist * 2.05;
+    const targetWidth = eyeDist * 2.08;
     const targetScale = THREE.MathUtils.clamp(targetWidth / baseModelWidth, 0.01, 1000);
 
     const tiltAngle = Math.atan2(
@@ -102,21 +131,26 @@ function TrackedGlasses({
     );
 
     const eyeMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
-    const pitch = THREE.MathUtils.clamp((noseBridge.y - eyeMidY) / eyeDist, -0.65, 0.65) * 2;
+    const bridgeRatio = THREE.MathUtils.clamp((noseBridge.y - eyeMidY) / eyeDist, -0.35, 0.35);
+    const pitch = bridgeRatio * 1.15;
 
     const rawDepthDiff = (landmarks[263].z ?? 0) - (landmarks[33].z ?? 0);
-    const yaw = THREE.MathUtils.clamp(rawDepthDiff * 6, -0.9, 0.9);
+    const yaw = THREE.MathUtils.clamp(-rawDepthDiff * 4.8, -0.65, 0.65);
+    const roll = THREE.MathUtils.clamp(tiltAngle * 0.68, -0.42, 0.42);
+
+    const targetY = centerY + eyeDist * 0.03;
 
     group.visible = true;
 
-    smoothedPosition.current.lerp(new THREE.Vector3(centerX, centerY, 0), 0.32);
-    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.32);
+    targetPosition.current.set(centerX, targetY, 0);
+    smoothedPosition.current.lerp(targetPosition.current, 0.24);
+    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.24);
 
     group.position.copy(smoothedPosition.current);
     group.scale.setScalar(smoothedScale.current);
-    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.28);
-    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.28);
-    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, -tiltAngle, 0.28);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.22);
+    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.22);
+    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.22);
   });
 
   return (

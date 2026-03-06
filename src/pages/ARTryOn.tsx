@@ -187,13 +187,11 @@ export default function ARTryOn() {
     try {
       setCameraError(null);
 
-      const isPortrait = window.innerHeight > window.innerWidth;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: "user",
-          width: { ideal: isPortrait ? 720 : 1280 },
-          height: { ideal: isPortrait ? 1280 : 720 },
-          aspectRatio: { ideal: isPortrait ? 9 / 16 : 16 / 9 },
+          facingMode: { ideal: "user" },
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 960, max: 1440 },
         },
       });
 
@@ -263,11 +261,22 @@ export default function ARTryOn() {
           : prev
       );
 
-      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+      const coverScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+      const containScale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+      const videoAspect = video.videoWidth / video.videoHeight;
+      const canvasAspect = canvas.width / canvas.height;
+      const aspectMismatch = Math.abs(videoAspect - canvasAspect);
+      const drawScale = aspectMismatch > 0.25 ? containScale : coverScale;
+
       const drawWidth = video.videoWidth * drawScale;
       const drawHeight = video.videoHeight * drawScale;
       const offsetX = (canvas.width - drawWidth) / 2;
       const offsetY = (canvas.height - drawHeight) / 2;
+
+      const bgWidth = video.videoWidth * coverScale;
+      const bgHeight = video.videoHeight * coverScale;
+      const bgOffsetX = (canvas.width - bgWidth) / 2;
+      const bgOffsetY = (canvas.height - bgHeight) / 2;
 
       frameMetricsRef.current = {
         canvasWidth: canvas.width,
@@ -281,10 +290,16 @@ export default function ARTryOn() {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Mirror + cover fit to avoid black bars
       ctx.save();
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
+
+      if (drawScale === containScale) {
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(video, bgOffsetX, bgOffsetY, bgWidth, bgHeight);
+        ctx.globalAlpha = 1;
+      }
+
       ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
       ctx.restore();
 
@@ -315,20 +330,22 @@ export default function ARTryOn() {
               );
 
               const hasArImage = !!product?.ar_image;
-              const glassesWidth = eyeDistance * (hasArImage ? 2.1 : 1.8);
+              const glassesWidth = eyeDistance * (hasArImage ? 2.0 : 1.65);
               const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
               const glassesHeight = glassesWidth * (hasArImage ? naturalAspect : Math.min(naturalAspect, 0.45));
 
               const centerX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
               const eyesMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
-              const centerY = eyesMidY + (bridgePoint.y - eyesMidY) * 0.35;
+              const centerY = eyesMidY + (bridgePoint.y - eyesMidY) * 0.45 + eyeDistance * 0.02;
 
-              let angle = Math.atan2(
+              const rawAngle = Math.atan2(
                 rightEyeOuter.y - leftEyeOuter.y,
                 rightEyeOuter.x - leftEyeOuter.x
               );
-              if (angle > Math.PI / 2) angle -= Math.PI;
-              if (angle < -Math.PI / 2) angle += Math.PI;
+              let normalizedAngle = rawAngle;
+              if (normalizedAngle > Math.PI / 2) normalizedAngle -= Math.PI;
+              if (normalizedAngle < -Math.PI / 2) normalizedAngle += Math.PI;
+              const angle = normalizedAngle * 0.55;
 
               ctx.save();
               ctx.translate(centerX, centerY);
@@ -336,7 +353,7 @@ export default function ARTryOn() {
               ctx.drawImage(
                 glassesImgRef.current,
                 -glassesWidth / 2,
-                -glassesHeight / 2 - glassesHeight * 0.04,
+                -glassesHeight / 2 - glassesHeight * 0.03,
                 glassesWidth,
                 glassesHeight
               );
