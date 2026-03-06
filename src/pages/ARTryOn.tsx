@@ -15,9 +15,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/hooks/useCart";
 import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import type { TrackingFrameMetrics } from "@/components/ar/FaceTracker3D";
 
 const FaceTracker3D = lazy(() => import("@/components/ar/FaceTracker3D"));
-const ModelViewer = lazy(() => import("@/components/ar/ModelViewer"));
 
 interface Product {
   id: string;
@@ -32,6 +32,7 @@ interface Product {
 }
 
 type MediaTab = "tryon" | "photos" | "videos" | "360";
+type ModelRenderStatus = "idle" | "checking" | "ready" | "failed";
 
 export default function ARTryOn() {
   const { productId } = useParams();
@@ -46,15 +47,20 @@ export default function ARTryOn() {
   const [modelLoading, setModelLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<MediaTab>("tryon");
   const [videoDims, setVideoDims] = useState({ w: 0, h: 0 });
+  const [modelRenderStatus, setModelRenderStatus] = useState<ModelRenderStatus>("idle");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tryOnStageRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
   const glassesImgRef = useRef<HTMLImageElement | null>(null);
   const landmarksRef = useRef<any[] | null>(null);
+  const frameMetricsRef = useRef<TrackingFrameMetrics | null>(null);
 
   const has3DModel = !!product?.ar_model_url;
+  const use3DOverlay = has3DModel && modelRenderStatus === "ready";
+  const use2DOverlay = !use3DOverlay;
 
   // Load product
   useEffect(() => {
@@ -71,18 +77,26 @@ export default function ARTryOn() {
     fetchProduct();
   }, [productId]);
 
-  // Load glasses image for 2D fallback only
+  // Load glasses image for 2D overlay (fallback when 3D is not available)
   useEffect(() => {
-    if (has3DModel) return;
+    if (!use2DOverlay) {
+      glassesImgRef.current = null;
+      return;
+    }
+
     const arSrc = product?.ar_image || product?.images?.[0];
-    if (!arSrc) return;
+    if (!arSrc) {
+      glassesImgRef.current = null;
+      return;
+    }
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = arSrc;
     img.onload = () => {
       glassesImgRef.current = img;
     };
-  }, [product, has3DModel]);
+  }, [product, use2DOverlay]);
 
   // Initialize MediaPipe FaceLandmarker
   useEffect(() => {
@@ -128,12 +142,61 @@ export default function ARTryOn() {
     initFaceLandmarker();
   }, []);
 
+  // Validate GLB/GLTF URL and fallback to 2D when URL is invalid/inaccessible
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifyModelUrl = async () => {
+      const modelUrl = product?.ar_model_url;
+
+      if (!modelUrl) {
+        if (isMounted) setModelRenderStatus("idle");
+        return;
+      }
+
+      if (isMounted) setModelRenderStatus("checking");
+
+      try {
+        const response = await fetch(modelUrl, { method: "GET" });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const lowerUrl = modelUrl.toLowerCase();
+
+        const looksLikeModel =
+          lowerUrl.endsWith(".glb") ||
+          lowerUrl.endsWith(".gltf") ||
+          contentType.includes("model/gltf-binary") ||
+          contentType.includes("model/gltf+json") ||
+          contentType.includes("application/octet-stream") ||
+          contentType.includes("binary/octet-stream");
+
+        if (!isMounted) return;
+        setModelRenderStatus(response.ok && looksLikeModel ? "ready" : "failed");
+      } catch {
+        if (isMounted) setModelRenderStatus("failed");
+      }
+    };
+
+    verifyModelUrl();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [product?.ar_model_url]);
+
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
+
+      const isPortrait = window.innerHeight > window.innerWidth;
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          facingMode: "user",
+          width: { ideal: isPortrait ? 720 : 1280 },
+          height: { ideal: isPortrait ? 1280 : 720 },
+          aspectRatio: { ideal: isPortrait ? 9 / 16 : 16 / 9 },
+        },
       });
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -159,6 +222,8 @@ export default function ARTryOn() {
     }
     setCameraActive(false);
     landmarksRef.current = null;
+    frameMetricsRef.current = null;
+    setVideoDims({ w: 0, h: 0 });
   }, []);
 
   // Render loop
@@ -174,60 +239,94 @@ export default function ARTryOn() {
 
     const renderFrame = () => {
       if (!video || video.paused || video.ended || !ctx) return;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      // Update dims for 3D overlay
-      if (video.videoWidth && video.videoHeight) {
-        setVideoDims((prev) =>
-          prev.w !== video.videoWidth || prev.h !== video.videoHeight
-            ? { w: video.videoWidth, h: video.videoHeight }
-            : prev
-        );
+      if (!video.videoWidth || !video.videoHeight) {
+        animFrameRef.current = requestAnimationFrame(renderFrame);
+        return;
       }
 
-      // Mirror video
+      const stageWidth = tryOnStageRef.current?.clientWidth || video.videoWidth;
+      const stageHeight = tryOnStageRef.current?.clientHeight || video.videoHeight;
+
+      if (!stageWidth || !stageHeight) {
+        animFrameRef.current = requestAnimationFrame(renderFrame);
+        return;
+      }
+
+      if (canvas.width !== stageWidth || canvas.height !== stageHeight) {
+        canvas.width = stageWidth;
+        canvas.height = stageHeight;
+      }
+
+      setVideoDims((prev) =>
+        prev.w !== stageWidth || prev.h !== stageHeight
+          ? { w: stageWidth, h: stageHeight }
+          : prev
+      );
+
+      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+      const drawWidth = video.videoWidth * drawScale;
+      const drawHeight = video.videoHeight * drawScale;
+      const offsetX = (canvas.width - drawWidth) / 2;
+      const offsetY = (canvas.height - drawHeight) / 2;
+
+      frameMetricsRef.current = {
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        drawScale,
+        offsetX,
+        offsetY,
+      };
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Mirror + cover fit to avoid black bars
       ctx.save();
+      ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
       ctx.restore();
 
       const now = performance.now();
       if (now !== lastTime) {
         lastTime = now;
+
         try {
           const results = faceLandmarker.detectForVideo(video, now);
 
           if (results.faceLandmarks?.length) {
             const landmarks = results.faceLandmarks[0];
-
-            // Store for 3D overlay
             landmarksRef.current = landmarks;
 
-            // 2D fallback: draw glasses on canvas when no 3D model
-            if (!has3DModel && glassesImgRef.current) {
-              const leftEyeOuter = landmarks[33];
-              const rightEyeOuter = landmarks[263];
-              const bridgePoint = landmarks[168];
+            if (use2DOverlay && glassesImgRef.current) {
+              const mapPointToCanvas = (point: { x: number; y: number }) => ({
+                x: (1 - point.x) * video.videoWidth * drawScale + offsetX,
+                y: point.y * video.videoHeight * drawScale + offsetY,
+              });
 
-              const leftX = (1 - rightEyeOuter.x) * canvas.width;
-              const leftY = rightEyeOuter.y * canvas.height;
-              const rightX = (1 - leftEyeOuter.x) * canvas.width;
-              const rightY = leftEyeOuter.y * canvas.height;
+              const leftEyeOuter = mapPointToCanvas(landmarks[33]);
+              const rightEyeOuter = mapPointToCanvas(landmarks[263]);
+              const bridgePoint = mapPointToCanvas(landmarks[168]);
 
-              const eyeDistance = Math.hypot(rightX - leftX, rightY - leftY);
+              const eyeDistance = Math.hypot(
+                rightEyeOuter.x - leftEyeOuter.x,
+                rightEyeOuter.y - leftEyeOuter.y
+              );
+
               const hasArImage = !!product?.ar_image;
               const glassesWidth = eyeDistance * (hasArImage ? 2.1 : 1.8);
               const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
               const glassesHeight = glassesWidth * (hasArImage ? naturalAspect : Math.min(naturalAspect, 0.45));
 
-              const centerX = (leftX + rightX) / 2;
-              const eyesMidY = (leftY + rightY) / 2;
-              const bridgeY = bridgePoint.y * canvas.height;
-              const centerY = eyesMidY + (bridgeY - eyesMidY) * 0.35;
+              const centerX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
+              const eyesMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
+              const centerY = eyesMidY + (bridgePoint.y - eyesMidY) * 0.35;
 
-              let angle = Math.atan2(rightY - leftY, rightX - leftX);
+              let angle = Math.atan2(
+                rightEyeOuter.y - leftEyeOuter.y,
+                rightEyeOuter.x - leftEyeOuter.x
+              );
               if (angle > Math.PI / 2) angle -= Math.PI;
               if (angle < -Math.PI / 2) angle += Math.PI;
 
@@ -269,7 +368,7 @@ export default function ARTryOn() {
       }
       video.removeEventListener("playing", onPlaying);
     };
-  }, [cameraActive, faceLandmarker, has3DModel]);
+  }, [cameraActive, faceLandmarker, use2DOverlay, product?.ar_image]);
 
   useEffect(() => {
     return () => stopCamera();
@@ -317,9 +416,9 @@ export default function ARTryOn() {
       {/* Main content area */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {activeTab === "tryon" && (
-          <>
+          <div ref={tryOnStageRef} className="absolute inset-0">
             {!cameraActive && (
-              <div className="flex flex-col items-center gap-4 text-center px-6">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6 z-10">
                 {modelLoading ? (
                   <>
                     <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin" />
@@ -346,6 +445,11 @@ export default function ARTryOn() {
                     <p className="text-white/60 text-sm max-w-xs">
                       See how this eyewear looks on you using your camera
                     </p>
+                    {has3DModel && modelRenderStatus === "failed" && (
+                      <p className="text-white/60 text-xs max-w-xs">
+                        3D model URL inaccessible hai, isliye fallback try-on use hoga.
+                      </p>
+                    )}
                     <Button
                       onClick={startCamera}
                       className="bg-accent hover:bg-accent/90 text-white font-bold px-8 py-3 rounded-full mt-2"
@@ -360,17 +464,19 @@ export default function ARTryOn() {
             <video ref={videoRef} playsInline muted className="hidden" />
             <canvas
               ref={canvasRef}
-              className={`w-full h-full object-contain ${cameraActive ? "block" : "hidden"}`}
+              className={`absolute inset-0 w-full h-full object-cover ${cameraActive ? "block" : "hidden"}`}
             />
 
             {/* 3D GLB overlay on camera feed */}
-            {cameraActive && has3DModel && videoDims.w > 0 && (
+            {cameraActive && use3DOverlay && videoDims.w > 0 && (
               <Suspense fallback={null}>
                 <FaceTracker3D
                   modelUrl={product!.ar_model_url!}
                   landmarksRef={landmarksRef}
+                  frameMetricsRef={frameMetricsRef}
                   canvasWidth={videoDims.w}
                   canvasHeight={videoDims.h}
+                  onModelLoaded={() => setModelRenderStatus("ready")}
                 />
               </Suspense>
             )}
@@ -386,7 +492,7 @@ export default function ARTryOn() {
                 </button>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {activeTab === "photos" && (

@@ -3,64 +3,125 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
+export interface TrackingFrameMetrics {
+  canvasWidth: number;
+  canvasHeight: number;
+  videoWidth: number;
+  videoHeight: number;
+  drawScale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
 interface FaceTracker3DProps {
   modelUrl: string;
   landmarksRef: React.MutableRefObject<any[] | null>;
+  frameMetricsRef: React.MutableRefObject<TrackingFrameMetrics | null>;
   canvasWidth: number;
   canvasHeight: number;
+  onModelLoaded?: () => void;
 }
 
 function TrackedGlasses({
   modelUrl,
   landmarksRef,
-  canvasWidth,
-  canvasHeight,
-}: FaceTracker3DProps) {
+  frameMetricsRef,
+  onModelLoaded,
+}: Omit<FaceTracker3DProps, "canvasWidth" | "canvasHeight">) {
   const { scene } = useGLTF(modelUrl);
-  const clonedScene = useMemo(() => scene.clone(), [scene]);
   const groupRef = useRef<THREE.Group>(null);
+  const modelLoadedNotifiedRef = useRef(false);
+  const smoothedPosition = useRef(new THREE.Vector3());
+  const smoothedScale = useRef(1);
+
+  const { normalizedScene, baseModelWidth } = useMemo(() => {
+    const cloned = scene.clone(true);
+    cloned.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+
+    box.getSize(size);
+    box.getCenter(center);
+
+    cloned.position.sub(center);
+
+    const computedWidth = Math.max(size.x, size.y * 0.82, 0.001);
+
+    return {
+      normalizedScene: cloned,
+      baseModelWidth: computedWidth,
+    };
+  }, [scene]);
+
+  useEffect(() => {
+    if (!modelLoadedNotifiedRef.current) {
+      modelLoadedNotifiedRef.current = true;
+      onModelLoaded?.();
+    }
+  }, [onModelLoaded]);
 
   useFrame(() => {
-    const lm = landmarksRef.current;
-    if (!lm || !groupRef.current || !canvasWidth) return;
+    const landmarks = landmarksRef.current;
+    const metrics = frameMetricsRef.current;
+    const group = groupRef.current;
 
-    // MediaPipe landmarks are in un-mirrored normalized coords
-    // Canvas shows mirrored video, so swap left/right semantic points
-    const leftEyeOuter = lm[33];
-    const rightEyeOuter = lm[263];
-    const noseBridge = lm[168];
+    if (!landmarks || !metrics || !group) {
+      if (group) group.visible = false;
+      return;
+    }
 
-    // Convert to mirrored canvas pixel coords
-    const lx = (1 - rightEyeOuter.x) * canvasWidth;
-    const ly = rightEyeOuter.y * canvasHeight;
-    const rx = (1 - leftEyeOuter.x) * canvasWidth;
-    const ry = leftEyeOuter.y * canvasHeight;
+    const mapPointToCanvas = (point: { x: number; y: number }) => {
+      const x = (1 - point.x) * metrics.videoWidth * metrics.drawScale + metrics.offsetX;
+      const y = point.y * metrics.videoHeight * metrics.drawScale + metrics.offsetY;
+      return {
+        x: x - metrics.canvasWidth / 2,
+        y: -(y - metrics.canvasHeight / 2),
+      };
+    };
 
-    // Center between eyes → orthographic coords (origin = canvas center)
-    const cx = (lx + rx) / 2 - canvasWidth / 2;
-    const cy = -((ly + ry) / 2 - canvasHeight / 2);
+    const leftEyeOuter = mapPointToCanvas(landmarks[33]);
+    const rightEyeOuter = mapPointToCanvas(landmarks[263]);
+    const noseBridge = mapPointToCanvas(landmarks[168]);
 
-    const eyeDist = Math.hypot(rx - lx, ry - ly);
-    const scale = eyeDist / 55;
+    const eyeDist = Math.max(
+      1,
+      Math.hypot(rightEyeOuter.x - leftEyeOuter.x, rightEyeOuter.y - leftEyeOuter.y)
+    );
 
-    const tiltAngle = Math.atan2(ry - ly, rx - lx);
+    const centerX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
+    const centerY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
 
-    groupRef.current.position.set(cx, cy, 0);
-    groupRef.current.scale.setScalar(scale);
-    groupRef.current.rotation.z = -tiltAngle;
+    const targetWidth = eyeDist * 2.05;
+    const targetScale = THREE.MathUtils.clamp(targetWidth / baseModelWidth, 0.01, 1000);
 
-    // Face pitch (looking up/down)
+    const tiltAngle = Math.atan2(
+      rightEyeOuter.y - leftEyeOuter.y,
+      rightEyeOuter.x - leftEyeOuter.x
+    );
+
     const eyeMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
-    groupRef.current.rotation.x = (noseBridge.y - eyeMidY) * 4;
+    const pitch = THREE.MathUtils.clamp((noseBridge.y - eyeMidY) / eyeDist, -0.65, 0.65) * 2;
 
-    // Face yaw (looking left/right)
-    const depthDiff = rightEyeOuter.z - leftEyeOuter.z;
-    groupRef.current.rotation.y = depthDiff * 5;
+    const rawDepthDiff = (landmarks[263].z ?? 0) - (landmarks[33].z ?? 0);
+    const yaw = THREE.MathUtils.clamp(rawDepthDiff * 6, -0.9, 0.9);
+
+    group.visible = true;
+
+    smoothedPosition.current.lerp(new THREE.Vector3(centerX, centerY, 0), 0.32);
+    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.32);
+
+    group.position.copy(smoothedPosition.current);
+    group.scale.setScalar(smoothedScale.current);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.28);
+    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.28);
+    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, -tiltAngle, 0.28);
   });
 
   return (
-    <group ref={groupRef}>
-      <primitive object={clonedScene} />
+    <group ref={groupRef} visible={false}>
+      <primitive object={normalizedScene} />
     </group>
   );
 }
@@ -90,8 +151,10 @@ function CameraUpdater({
 export default function FaceTracker3D({
   modelUrl,
   landmarksRef,
+  frameMetricsRef,
   canvasWidth,
   canvasHeight,
+  onModelLoaded,
 }: FaceTracker3DProps) {
   if (!canvasWidth || !canvasHeight) return null;
 
@@ -118,14 +181,14 @@ export default function FaceTracker3D({
       }}
     >
       <CameraUpdater canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[0, 5, 5]} intensity={0.6} />
-      <directionalLight position={[-3, 2, -3]} intensity={0.3} />
+      <ambientLight intensity={1.1} />
+      <directionalLight position={[0, 5, 5]} intensity={0.7} />
+      <directionalLight position={[-3, 2, -3]} intensity={0.35} />
       <TrackedGlasses
         modelUrl={modelUrl}
         landmarksRef={landmarksRef}
-        canvasWidth={canvasWidth}
-        canvasHeight={canvasHeight}
+        frameMetricsRef={frameMetricsRef}
+        onModelLoaded={onModelLoaded}
       />
     </Canvas>
   );
