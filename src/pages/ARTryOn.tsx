@@ -82,6 +82,7 @@ export default function ARTryOn() {
   useEffect(() => {
     if (!use2DOverlay) {
       glassesImgRef.current = null;
+      overlayStateRef.current.initialized = false;
       return;
     }
 
