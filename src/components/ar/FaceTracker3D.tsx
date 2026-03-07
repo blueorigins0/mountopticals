@@ -92,7 +92,7 @@ function TrackedGlasses({
     finalBox.getCenter(finalCenter);
 
     finalScene.position.sub(finalCenter);
-    finalScene.position.y -= finalSize.y * 0.09;
+    finalScene.position.y -= finalSize.y * 0.03;
     finalScene.updateMatrixWorld(true);
 
     const computedWidth = Math.max(finalSize.x, finalSize.y * 1.05, 0.001);
