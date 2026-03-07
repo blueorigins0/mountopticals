@@ -241,6 +241,7 @@ export default function ARTryOn() {
     setCameraActive(false);
     landmarksRef.current = null;
     frameMetricsRef.current = null;
+    overlayStateRef.current.initialized = false;
     setVideoDims({ w: 0, h: 0 });
   }, []);
 
