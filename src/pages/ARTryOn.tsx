@@ -284,10 +284,7 @@ export default function ARTryOn() {
 
       const coverScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
       const containScale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
-      const videoAspect = video.videoWidth / video.videoHeight;
-      const canvasAspect = canvas.width / canvas.height;
-      const aspectMismatch = Math.abs(videoAspect - canvasAspect);
-      const drawScale = aspectMismatch > 0.25 ? containScale : coverScale;
+      const drawScale = containScale + (coverScale - containScale) * 0.22;
 
       const drawWidth = video.videoWidth * drawScale;
       const drawHeight = video.videoHeight * drawScale;
@@ -315,7 +312,8 @@ export default function ARTryOn() {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
 
-      if (drawScale === containScale) {
+      const hasLetterbox = drawWidth < canvas.width || drawHeight < canvas.height;
+      if (hasLetterbox) {
         ctx.globalAlpha = 0.35;
         ctx.drawImage(video, bgOffsetX, bgOffsetY, bgWidth, bgHeight);
         ctx.globalAlpha = 1;
