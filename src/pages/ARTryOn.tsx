@@ -339,47 +339,91 @@ export default function ARTryOn() {
                 y: point.y * video.videoHeight * drawScale + offsetY,
               });
 
-              const leftEyeOuter = mapPointToCanvas(landmarks[33]);
-              const rightEyeOuter = mapPointToCanvas(landmarks[263]);
-              const bridgePoint = mapPointToCanvas(landmarks[168]);
+              const leftEyeSource = landmarks[33];
+              const rightEyeSource = landmarks[263];
 
-              const eyeDistance = Math.hypot(
-                rightEyeOuter.x - leftEyeOuter.x,
-                rightEyeOuter.y - leftEyeOuter.y
-              );
+              if (leftEyeSource && rightEyeSource) {
+                const leftTempleSource = landmarks[127] ?? leftEyeSource;
+                const rightTempleSource = landmarks[356] ?? rightEyeSource;
+                const noseTipSource = landmarks[6] ?? landmarks[1] ?? landmarks[168] ?? leftEyeSource;
 
-              const hasArImage = !!product?.ar_image;
-              const glassesWidth = eyeDistance * (hasArImage ? 2.0 : 1.65);
-              const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
-              const glassesHeight = glassesWidth * (hasArImage ? naturalAspect : Math.min(naturalAspect, 0.45));
+                const leftEyeOuter = mapPointToCanvas(leftEyeSource);
+                const rightEyeOuter = mapPointToCanvas(rightEyeSource);
+                const leftTemple = mapPointToCanvas(leftTempleSource);
+                const rightTemple = mapPointToCanvas(rightTempleSource);
+                const noseTip = mapPointToCanvas(noseTipSource);
 
-              const centerX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
-              const eyesMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
-              const centerY = eyesMidY + (bridgePoint.y - eyesMidY) * 0.45 + eyeDistance * 0.02;
+                const eyeDistance = Math.hypot(
+                  rightEyeOuter.x - leftEyeOuter.x,
+                  rightEyeOuter.y - leftEyeOuter.y
+                );
 
-              const rawAngle = Math.atan2(
-                rightEyeOuter.y - leftEyeOuter.y,
-                rightEyeOuter.x - leftEyeOuter.x
-              );
-              let normalizedAngle = rawAngle;
-              if (normalizedAngle > Math.PI / 2) normalizedAngle -= Math.PI;
-              if (normalizedAngle < -Math.PI / 2) normalizedAngle += Math.PI;
-              const angle = normalizedAngle * 0.55;
+                const frameDistance = Math.hypot(
+                  rightTemple.x - leftTemple.x,
+                  rightTemple.y - leftTemple.y
+                );
 
-              ctx.save();
-              ctx.translate(centerX, centerY);
-              ctx.rotate(angle);
-              ctx.drawImage(
-                glassesImgRef.current,
-                -glassesWidth / 2,
-                -glassesHeight / 2 - glassesHeight * 0.03,
-                glassesWidth,
-                glassesHeight
-              );
-              ctx.restore();
+                const hasArImage = !!product?.ar_image;
+                const targetWidth = Math.max(
+                  eyeDistance * (hasArImage ? 1.9 : 1.6),
+                  frameDistance * (hasArImage ? 1.02 : 0.9)
+                );
+
+                const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
+                const aspectRatio = hasArImage ? naturalAspect : Math.min(naturalAspect, 0.42);
+
+                const eyeMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
+                const noseDrop = Math.max(0, noseTip.y - eyeMidY);
+                const depthDiff = (landmarks[263]?.z ?? 0) - (landmarks[33]?.z ?? 0);
+                const horizontalShift = Math.max(
+                  -eyeDistance * 0.2,
+                  Math.min(eyeDistance * 0.2, -depthDiff * eyeDistance * 0.95)
+                );
+
+                const targetCenterX = (leftEyeOuter.x + rightEyeOuter.x) / 2 + horizontalShift;
+                const targetCenterY = eyeMidY + eyeDistance * 0.075 + noseDrop * 0.14;
+
+                const rawAngle = Math.atan2(
+                  rightEyeOuter.y - leftEyeOuter.y,
+                  rightEyeOuter.x - leftEyeOuter.x
+                );
+                let normalizedAngle = rawAngle;
+                if (normalizedAngle > Math.PI / 2) normalizedAngle -= Math.PI;
+                if (normalizedAngle < -Math.PI / 2) normalizedAngle += Math.PI;
+                const targetAngle = normalizedAngle * 0.42;
+
+                const overlayState = overlayStateRef.current;
+                if (!overlayState.initialized) {
+                  overlayState.x = targetCenterX;
+                  overlayState.y = targetCenterY;
+                  overlayState.width = targetWidth;
+                  overlayState.angle = targetAngle;
+                  overlayState.initialized = true;
+                } else {
+                  overlayState.x += (targetCenterX - overlayState.x) * 0.22;
+                  overlayState.y += (targetCenterY - overlayState.y) * 0.22;
+                  overlayState.width += (targetWidth - overlayState.width) * 0.22;
+                  overlayState.angle += (targetAngle - overlayState.angle) * 0.22;
+                }
+
+                const renderHeight = overlayState.width * aspectRatio;
+
+                ctx.save();
+                ctx.translate(overlayState.x, overlayState.y);
+                ctx.rotate(overlayState.angle);
+                ctx.drawImage(
+                  glassesImgRef.current,
+                  -overlayState.width / 2,
+                  -renderHeight / 2 - renderHeight * 0.02,
+                  overlayState.width,
+                  renderHeight
+                );
+                ctx.restore();
+              }
             }
           } else {
             landmarksRef.current = null;
+            overlayStateRef.current.initialized = false;
           }
         } catch {
           // Skip frame
