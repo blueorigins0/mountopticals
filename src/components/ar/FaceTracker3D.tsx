@@ -38,6 +38,11 @@ function TrackedGlasses({
   const { normalizedScene, baseModelWidth } = useMemo(() => {
     const rotationCandidates = [
       { x: 0, y: 0, z: 0 },
+      { x: 0, y: Math.PI, z: 0 },
+      { x: 0, y: 0, z: Math.PI },
+      { x: Math.PI, y: 0, z: 0 },
+      { x: Math.PI, y: Math.PI, z: 0 },
+      { x: 0, y: Math.PI, z: Math.PI },
       { x: 0, y: 0, z: Math.PI / 2 },
       { x: 0, y: 0, z: -Math.PI / 2 },
       { x: Math.PI / 2, y: 0, z: 0 },
@@ -47,7 +52,6 @@ function TrackedGlasses({
     ];
 
     let bestScene: THREE.Object3D | null = null;
-    let bestSize = new THREE.Vector3(1, 1, 1);
     let bestScore = -Infinity;
 
     for (const candidate of rotationCandidates) {
@@ -66,17 +70,32 @@ function TrackedGlasses({
 
       const widthHeightRatio = size.x / Math.max(size.y, 0.001);
       const depthPenalty = size.z / Math.max(size.x, 0.001);
-      const score = widthHeightRatio - depthPenalty * 0.45;
+      const orientationPenalty =
+        (Math.abs(candidate.x) > 0 ? 0.04 : 0) +
+        (Math.abs(candidate.z) > 0 ? 0.04 : 0) +
+        (Math.abs(candidate.y) > 0 ? 0.02 : 0);
+      const score = widthHeightRatio - depthPenalty * 0.5 - orientationPenalty;
 
       if (score > bestScore) {
         bestScore = score;
         bestScene = candidateScene;
-        bestSize = size;
       }
     }
 
     const finalScene = bestScene ?? scene.clone(true);
-    const computedWidth = Math.max(bestSize.x, bestSize.y * 0.9, 0.001);
+    finalScene.updateMatrixWorld(true);
+
+    const finalBox = new THREE.Box3().setFromObject(finalScene);
+    const finalSize = new THREE.Vector3();
+    const finalCenter = new THREE.Vector3();
+    finalBox.getSize(finalSize);
+    finalBox.getCenter(finalCenter);
+
+    finalScene.position.sub(finalCenter);
+    finalScene.position.y -= finalSize.y * 0.09;
+    finalScene.updateMatrixWorld(true);
+
+    const computedWidth = Math.max(finalSize.x, finalSize.y * 1.05, 0.001);
 
     return {
       normalizedScene: finalScene,

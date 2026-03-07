@@ -57,6 +57,7 @@ export default function ARTryOn() {
   const glassesImgRef = useRef<HTMLImageElement | null>(null);
   const landmarksRef = useRef<any[] | null>(null);
   const frameMetricsRef = useRef<TrackingFrameMetrics | null>(null);
+  const overlayStateRef = useRef({ x: 0, y: 0, width: 0, angle: 0, initialized: false });
 
   const has3DModel = !!product?.ar_model_url;
   const use3DOverlay = has3DModel && modelRenderStatus === "ready";
