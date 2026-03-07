@@ -92,7 +92,7 @@ function TrackedGlasses({
     finalBox.getCenter(finalCenter);
 
     finalScene.position.sub(finalCenter);
-    finalScene.position.y -= finalSize.y * 0.09;
+    finalScene.position.y -= finalSize.y * 0.03;
     finalScene.updateMatrixWorld(true);
 
     const computedWidth = Math.max(finalSize.x, finalSize.y * 1.05, 0.001);
@@ -120,20 +120,16 @@ function TrackedGlasses({
       return;
     }
 
-    const mapPointToCanvas = (point: { x: number; y: number }) => {
-      const x = (1 - point.x) * metrics.videoWidth * metrics.drawScale + metrics.offsetX;
-      const y = point.y * metrics.videoHeight * metrics.drawScale + metrics.offsetY;
-      return {
-        x: x - metrics.canvasWidth / 2,
-        y: -(y - metrics.canvasHeight / 2),
-      };
-    };
+    const mapPointToCanvas = (point: { x: number; y: number }) => ({
+      x: (1 - point.x) * metrics.videoWidth * metrics.drawScale + metrics.offsetX,
+      y: point.y * metrics.videoHeight * metrics.drawScale + metrics.offsetY,
+    });
 
     const leftEyeSource = landmarks[33];
     const rightEyeSource = landmarks[263];
-    const noseTipSource = landmarks[6] ?? landmarks[1] ?? landmarks[168];
+    const noseBridgeSource = landmarks[168] ?? landmarks[6] ?? landmarks[1];
 
-    if (!leftEyeSource || !rightEyeSource || !noseTipSource) {
+    if (!leftEyeSource || !rightEyeSource || !noseBridgeSource) {
       group.visible = false;
       return;
     }
@@ -141,53 +137,48 @@ function TrackedGlasses({
     const leftTempleSource = landmarks[127] ?? leftEyeSource;
     const rightTempleSource = landmarks[356] ?? rightEyeSource;
 
-    const leftEyeOuter = mapPointToCanvas(leftEyeSource);
-    const rightEyeOuter = mapPointToCanvas(rightEyeSource);
+    const leftEye = mapPointToCanvas(leftEyeSource);
+    const rightEye = mapPointToCanvas(rightEyeSource);
     const leftTemple = mapPointToCanvas(leftTempleSource);
     const rightTemple = mapPointToCanvas(rightTempleSource);
-    const noseTip = mapPointToCanvas(noseTipSource);
+    const noseBridge = mapPointToCanvas(noseBridgeSource);
 
-    const eyeDist = Math.max(
-      1,
-      Math.hypot(rightEyeOuter.x - leftEyeOuter.x, rightEyeOuter.y - leftEyeOuter.y)
-    );
-
+    const eyeDist = Math.max(1, Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y));
     const frameSpan = Math.max(
       1,
       Math.hypot(rightTemple.x - leftTemple.x, rightTemple.y - leftTemple.y)
     );
 
-    const centerX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
-    const eyeMidY = (leftEyeOuter.y + rightEyeOuter.y) / 2;
+    const centerX = (leftEye.x + rightEye.x) / 2;
+    const eyeMidY = (leftEye.y + rightEye.y) / 2;
 
-    const targetWidth = THREE.MathUtils.lerp(eyeDist * 2.0, frameSpan * 1.04, 0.6);
-    const targetScale = THREE.MathUtils.clamp((targetWidth / baseModelWidth) * 0.94, 0.01, 1000);
+    const targetWidth = THREE.MathUtils.lerp(eyeDist * 1.78, frameSpan * 0.94, 0.68);
+    const targetScale = THREE.MathUtils.clamp((targetWidth / baseModelWidth) * 0.9, 0.01, 1000);
 
-    const tiltAngle = Math.atan2(
-      rightEyeOuter.y - leftEyeOuter.y,
-      rightEyeOuter.x - leftEyeOuter.x
-    );
-
-    const noseDropRatio = THREE.MathUtils.clamp((noseTip.y - eyeMidY) / eyeDist, 0, 0.6);
-    const pitch = THREE.MathUtils.clamp((noseDropRatio - 0.24) * 0.9, -0.28, 0.28);
+    const tiltAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+    const noseDropRatio = THREE.MathUtils.clamp((noseBridge.y - eyeMidY) / eyeDist, 0, 0.75);
+    const pitch = THREE.MathUtils.clamp((noseDropRatio - 0.24) * 0.52, -0.18, 0.18);
 
     const rawDepthDiff = (landmarks[263]?.z ?? 0) - (landmarks[33]?.z ?? 0);
-    const yaw = THREE.MathUtils.clamp(-rawDepthDiff * 3.1, -0.5, 0.5);
-    const roll = THREE.MathUtils.clamp(tiltAngle * 0.52, -0.3, 0.3);
+    const yaw = THREE.MathUtils.clamp(-rawDepthDiff * 1.7, -0.22, 0.22);
+    const roll = THREE.MathUtils.clamp(-tiltAngle * 0.36, -0.2, 0.2);
 
-    const targetY = eyeMidY + eyeDist * 0.08 + (noseTip.y - eyeMidY) * 0.08;
+    const targetYCanvas = eyeMidY + eyeDist * 0.14 + (noseBridge.y - eyeMidY) * 0.2;
 
     group.visible = true;
 
-    targetPosition.current.set(centerX, targetY, 0);
-    smoothedPosition.current.lerp(targetPosition.current, 0.2);
-    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.2);
+    const worldX = centerX - metrics.canvasWidth / 2;
+    const worldY = -(targetYCanvas - metrics.canvasHeight / 2);
+
+    targetPosition.current.set(worldX, worldY, 0);
+    smoothedPosition.current.lerp(targetPosition.current, 0.24);
+    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.24);
 
     group.position.copy(smoothedPosition.current);
     group.scale.setScalar(smoothedScale.current);
-    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.18);
-    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.18);
-    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.18);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.22);
+    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.22);
+    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.22);
   });
 
   return (

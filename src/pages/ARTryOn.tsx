@@ -192,9 +192,9 @@ export default function ARTryOn() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "user" },
-          width: { min: 480, ideal: 720, max: 1280 },
-          height: { min: 640, ideal: 1280, max: 1920 },
-          aspectRatio: { ideal: 9 / 16 },
+          width: { ideal: 960 },
+          height: { ideal: 1280 },
+          aspectRatio: { ideal: 3 / 4 },
         },
       });
 
@@ -282,19 +282,11 @@ export default function ARTryOn() {
           : prev
       );
 
-      const coverScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
-      const containScale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
-      const drawScale = containScale + (coverScale - containScale) * 0.22;
-
+      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
       const drawWidth = video.videoWidth * drawScale;
       const drawHeight = video.videoHeight * drawScale;
       const offsetX = (canvas.width - drawWidth) / 2;
       const offsetY = (canvas.height - drawHeight) / 2;
-
-      const bgWidth = video.videoWidth * coverScale;
-      const bgHeight = video.videoHeight * coverScale;
-      const bgOffsetX = (canvas.width - bgWidth) / 2;
-      const bgOffsetY = (canvas.height - bgHeight) / 2;
 
       frameMetricsRef.current = {
         canvasWidth: canvas.width,
@@ -311,14 +303,6 @@ export default function ARTryOn() {
       ctx.save();
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
-
-      const hasLetterbox = drawWidth < canvas.width || drawHeight < canvas.height;
-      if (hasLetterbox) {
-        ctx.globalAlpha = 0.35;
-        ctx.drawImage(video, bgOffsetX, bgOffsetY, bgWidth, bgHeight);
-        ctx.globalAlpha = 1;
-      }
-
       ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
       ctx.restore();
 
