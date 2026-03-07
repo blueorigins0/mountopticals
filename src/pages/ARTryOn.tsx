@@ -192,10 +192,28 @@ export default function ARTryOn() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "user" },
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 960, max: 1440 },
+          width: { min: 480, ideal: 720, max: 1280 },
+          height: { min: 640, ideal: 1280, max: 1920 },
+          aspectRatio: { ideal: 9 / 16 },
         },
       });
+
+      const [videoTrack] = stream.getVideoTracks();
+      if (videoTrack) {
+        try {
+          const capabilities = (videoTrack.getCapabilities?.() ?? {}) as {
+            zoom?: { min?: number };
+          };
+
+          if (typeof capabilities.zoom?.min === "number") {
+            await videoTrack.applyConstraints({
+              advanced: [{ zoom: capabilities.zoom.min } as any],
+            });
+          }
+        } catch {
+          // Some devices don't support zoom constraints.
+        }
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
