@@ -307,8 +307,8 @@ export default function ARTryOn() {
 
                 const hasArImage = !!product?.ar_image;
                 const targetWidth = Math.max(
-                  eyeDistance * (hasArImage ? 2.25 : 2.05),
-                  frameDistance * (hasArImage ? 1.2 : 1.12)
+                  eyeDistance * (hasArImage ? 2.45 : 2.15),
+                  frameDistance * (hasArImage ? 1.32 : 1.18)
                 );
 
                 const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
@@ -318,12 +318,12 @@ export default function ARTryOn() {
                 const noseDrop = Math.max(0, noseTip.y - eyeMidY);
                 const depthDiff = (landmarks[263]?.z ?? 0) - (landmarks[33]?.z ?? 0);
                 const horizontalShift = Math.max(
-                  -eyeDistance * 0.18,
-                  Math.min(eyeDistance * 0.18, -depthDiff * eyeDistance * 0.8)
+                  -eyeDistance * 0.16,
+                  Math.min(eyeDistance * 0.16, -depthDiff * eyeDistance * 0.72)
                 );
 
                 const targetCenterX = (leftEyeOuter.x + rightEyeOuter.x) / 2 + horizontalShift;
-                const targetCenterY = eyeMidY + eyeDistance * 0.012 + noseDrop * 0.07;
+                const targetCenterY = eyeMidY + eyeDistance * 0.04 + noseDrop * 0.12;
 
                 const rawAngle = Math.atan2(
                   rightEyeOuter.y - leftEyeOuter.y,
@@ -332,7 +332,7 @@ export default function ARTryOn() {
                 let normalizedAngle = rawAngle;
                 if (normalizedAngle > Math.PI / 2) normalizedAngle -= Math.PI;
                 if (normalizedAngle < -Math.PI / 2) normalizedAngle += Math.PI;
-                const targetAngle = normalizedAngle * 0.42;
+                const targetAngle = normalizedAngle * 0.65;
 
                 const overlayState = overlayStateRef.current;
                 if (!overlayState.initialized) {
@@ -342,10 +342,10 @@ export default function ARTryOn() {
                   overlayState.angle = targetAngle;
                   overlayState.initialized = true;
                 } else {
-                  overlayState.x += (targetCenterX - overlayState.x) * 0.3;
-                  overlayState.y += (targetCenterY - overlayState.y) * 0.3;
-                  overlayState.width += (targetWidth - overlayState.width) * 0.28;
-                  overlayState.angle += (targetAngle - overlayState.angle) * 0.24;
+                  overlayState.x += (targetCenterX - overlayState.x) * 0.34;
+                  overlayState.y += (targetCenterY - overlayState.y) * 0.34;
+                  overlayState.width += (targetWidth - overlayState.width) * 0.32;
+                  overlayState.angle += (targetAngle - overlayState.angle) * 0.3;
                 }
 
                 const renderHeight = overlayState.width * aspectRatio;
@@ -356,7 +356,7 @@ export default function ARTryOn() {
                 ctx.drawImage(
                   glassesImgRef.current,
                   -overlayState.width / 2,
-                  -renderHeight / 2 - renderHeight * 0.02,
+                  -renderHeight / 2 + renderHeight * 0.03,
                   overlayState.width,
                   renderHeight
                 );
