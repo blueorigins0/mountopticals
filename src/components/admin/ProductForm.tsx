@@ -138,6 +138,7 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   const [arFitScale, setArFitScale] = useState(((product as any)?.ar_fit_scale ?? 1).toString());
   const [arFitYOffset, setArFitYOffset] = useState(((product as any)?.ar_fit_y_offset ?? 0).toString());
   const [arFitTiltMultiplier, setArFitTiltMultiplier] = useState(((product as any)?.ar_fit_tilt_multiplier ?? 1).toString());
+  const [arFlipFrontBack, setArFlipFrontBack] = useState(Boolean((product as any)?.ar_flip_front_back));
 
   // Simple Product Pricing (3-Tier)
   const [shopPrice, setShopPrice] = useState(product?.shop_price?.toString() || "");
