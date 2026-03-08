@@ -120,7 +120,7 @@ function TrackedGlasses({
       normalizedScene: finalScene,
       baseModelWidth: computedWidth,
     };
-  }, [scene]);
+  }, [scene, forceFlipFrontBack]);
 
   useEffect(() => {
     if (!modelLoadedNotifiedRef.current) {
