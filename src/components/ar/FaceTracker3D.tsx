@@ -259,6 +259,9 @@ export default function FaceTracker3D({
         modelUrl={modelUrl}
         landmarksRef={landmarksRef}
         frameMetricsRef={frameMetricsRef}
+        fitScaleMultiplier={fitScaleMultiplier}
+        fitYOffset={fitYOffset}
+        fitTiltMultiplier={fitTiltMultiplier}
         onModelLoaded={onModelLoaded}
       />
     </Canvas>
