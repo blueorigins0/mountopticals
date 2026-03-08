@@ -78,7 +78,7 @@ export default function ARTryOn() {
       if (!productId) return;
       const { data } = await supabase
         .from("products")
-        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url, ar_fit_scale, ar_fit_y_offset, ar_fit_tilt_multiplier")
+        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url, ar_fit_scale, ar_fit_y_offset, ar_fit_tilt_multiplier, ar_flip_front_back")
         .eq("id", productId)
         .maybeSingle();
       if (data) setProduct(data as unknown as Product);
