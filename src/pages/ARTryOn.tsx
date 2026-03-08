@@ -32,6 +32,7 @@ interface Product {
   ar_fit_scale: number;
   ar_fit_y_offset: number;
   ar_fit_tilt_multiplier: number;
+  ar_flip_front_back: boolean;
 }
 
 type MediaTab = "tryon" | "photos" | "videos" | "360";
