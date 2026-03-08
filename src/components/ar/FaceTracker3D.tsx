@@ -150,7 +150,7 @@ function TrackedGlasses({
     const templeMidY = (leftTemple.y + rightTemple.y) / 2;
     const bridgeDrop = noseBridge.y - eyeMidY;
 
-    const targetWidth = THREE.MathUtils.lerp(eyeDist * 1.92, frameSpan * 1.28, 0.75);
+    const targetWidth = THREE.MathUtils.lerp(eyeDist * 1.92, frameSpan * 1.28, 0.75) * fitScaleMultiplier;
     const targetScale = THREE.MathUtils.clamp((targetWidth / baseModelWidth) * 1.2, 0.01, 1000);
 
     const tiltAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
@@ -165,10 +165,11 @@ function TrackedGlasses({
       (landmarks[356]?.z ?? landmarks[263]?.z ?? 0) -
       (landmarks[127]?.z ?? landmarks[33]?.z ?? 0);
     const yaw = THREE.MathUtils.clamp(-templeDepthDiff * 0.68, -0.08, 0.08);
-    const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.72, -0.16, 0.16);
+    const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.72 * fitTiltMultiplier, -0.2, 0.2);
 
     const targetYCanvas =
-      THREE.MathUtils.lerp(eyeMidY + eyeDist * 0.04, templeMidY + eyeDist * 0.045, 0.3) + bridgeDrop * 0.24;
+      THREE.MathUtils.lerp(eyeMidY + eyeDist * (0.04 + fitYOffset), templeMidY + eyeDist * (0.045 + fitYOffset), 0.3) +
+      bridgeDrop * 0.24;
 
     group.visible = true;
 
