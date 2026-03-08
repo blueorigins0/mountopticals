@@ -43,7 +43,7 @@ function TrackedGlasses({
   const targetPosition = useRef(new THREE.Vector3());
   const smoothedScale = useRef(1);
 
-  const { normalizedScene, baseModelWidth } = useMemo(() => {
+  const { normalizedScene, baseModelWidth, isFrontBackFlipped } = useMemo(() => {
     const getBounds = (object: THREE.Object3D) => {
       object.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(object);
@@ -62,6 +62,7 @@ function TrackedGlasses({
 
     const finalScene = scene.clone(true);
     let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
+    let didFlipFrontBack = false;
 
     const frontDepth = Math.max(0, finalBox.max.z);
     const backDepth = Math.max(0, -finalBox.min.z);
@@ -69,12 +70,14 @@ function TrackedGlasses({
     // Default orientation: temples should extend towards back (ears), not front.
     if (frontDepth > backDepth) {
       finalScene.rotation.y += Math.PI;
+      didFlipFrontBack = !didFlipFrontBack;
       ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
     // Manual admin override for problematic assets.
     if (forceFlipFrontBack) {
       finalScene.rotation.y += Math.PI;
+      didFlipFrontBack = !didFlipFrontBack;
       ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
@@ -86,6 +89,7 @@ function TrackedGlasses({
     return {
       normalizedScene: finalScene,
       baseModelWidth: computedWidth,
+      isFrontBackFlipped: didFlipFrontBack,
     };
   }, [scene, forceFlipFrontBack]);
 
@@ -157,7 +161,8 @@ function TrackedGlasses({
     const templeDepthDiff =
       (landmarks[356]?.z ?? landmarks[263]?.z ?? 0) -
       (landmarks[127]?.z ?? landmarks[33]?.z ?? 0);
-    const yaw = THREE.MathUtils.clamp(-templeDepthDiff * 0.68, -0.08, 0.08);
+    const yawDirection = isFrontBackFlipped ? 1 : -1;
+    const yaw = THREE.MathUtils.clamp(templeDepthDiff * 0.68 * yawDirection, -0.08, 0.08);
     const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.72 * fitTiltMultiplier, -0.2, 0.2);
 
     const targetYCanvas =
