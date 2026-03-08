@@ -569,7 +569,7 @@ export default function ARTryOn() {
         )}
 
         {activeTab === "360" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6">
+          <div className="flex flex-col items-center gap-4 text-center px-6 pt-24 pb-52">
             <RotateCw className="h-16 w-16 text-white/30" />
             <p className="text-white/60 text-sm">360° view coming soon</p>
           </div>
