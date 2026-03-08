@@ -307,8 +307,8 @@ export default function ARTryOn() {
 
                 const hasArImage = !!product?.ar_image;
                 const targetWidth = Math.max(
-                  eyeDistance * (hasArImage ? 1.9 : 1.6),
-                  frameDistance * (hasArImage ? 1.02 : 0.9)
+                  eyeDistance * (hasArImage ? 2.25 : 2.05),
+                  frameDistance * (hasArImage ? 1.2 : 1.12)
                 );
 
                 const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
@@ -318,12 +318,12 @@ export default function ARTryOn() {
                 const noseDrop = Math.max(0, noseTip.y - eyeMidY);
                 const depthDiff = (landmarks[263]?.z ?? 0) - (landmarks[33]?.z ?? 0);
                 const horizontalShift = Math.max(
-                  -eyeDistance * 0.2,
-                  Math.min(eyeDistance * 0.2, -depthDiff * eyeDistance * 0.95)
+                  -eyeDistance * 0.18,
+                  Math.min(eyeDistance * 0.18, -depthDiff * eyeDistance * 0.8)
                 );
 
                 const targetCenterX = (leftEyeOuter.x + rightEyeOuter.x) / 2 + horizontalShift;
-                const targetCenterY = eyeMidY + eyeDistance * 0.075 + noseDrop * 0.14;
+                const targetCenterY = eyeMidY + eyeDistance * 0.012 + noseDrop * 0.07;
 
                 const rawAngle = Math.atan2(
                   rightEyeOuter.y - leftEyeOuter.y,
