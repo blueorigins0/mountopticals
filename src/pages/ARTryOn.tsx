@@ -198,23 +198,6 @@ export default function ARTryOn() {
         },
       });
 
-      const [videoTrack] = stream.getVideoTracks();
-      if (videoTrack) {
-        try {
-          const capabilities = (videoTrack.getCapabilities?.() ?? {}) as {
-            zoom?: { min?: number };
-          };
-
-          if (typeof capabilities.zoom?.min === "number") {
-            await videoTrack.applyConstraints({
-              advanced: [{ zoom: capabilities.zoom.min } as any],
-            });
-          }
-        } catch {
-          // Some devices don't support zoom constraints.
-        }
-      }
-
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -282,7 +265,7 @@ export default function ARTryOn() {
           : prev
       );
 
-      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight) * 1.12;
       const drawWidth = video.videoWidth * drawScale;
       const drawHeight = video.videoHeight * drawScale;
       const offsetX = (canvas.width - drawWidth) / 2;
@@ -455,7 +438,7 @@ export default function ARTryOn() {
   ];
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="h-[100dvh] bg-black relative overflow-hidden">
       {/* Floating top bar */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-3">
         <button
@@ -478,7 +461,7 @@ export default function ARTryOn() {
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
         {activeTab === "tryon" && (
           <div ref={tryOnStageRef} className="absolute inset-0">
             {!cameraActive && (
@@ -560,7 +543,7 @@ export default function ARTryOn() {
         )}
 
         {activeTab === "photos" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6 w-full">
+          <div className="flex flex-col items-center gap-4 text-center px-6 w-full pt-24 pb-52">
             {product?.images?.length ? (
               <div className="grid grid-cols-2 gap-2 p-4 max-w-md w-full">
                 {product.images.map((img, i) => (
@@ -579,14 +562,14 @@ export default function ARTryOn() {
         )}
 
         {activeTab === "videos" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6">
+          <div className="flex flex-col items-center gap-4 text-center px-6 pt-24 pb-52">
             <Video className="h-16 w-16 text-white/30" />
             <p className="text-white/60 text-sm">No videos available</p>
           </div>
         )}
 
         {activeTab === "360" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6">
+          <div className="flex flex-col items-center gap-4 text-center px-6 pt-24 pb-52">
             <RotateCw className="h-16 w-16 text-white/30" />
             <p className="text-white/60 text-sm">360° view coming soon</p>
           </div>
@@ -595,7 +578,7 @@ export default function ARTryOn() {
 
       {/* Bottom product card */}
       {product && (
-        <div className="bg-white p-3 flex items-center gap-3">
+        <div className="absolute left-0 right-0 bottom-[74px] z-20 bg-white p-3 flex items-center gap-3">
           <div className="w-20 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
             <img
               src={product.images?.[0] || "/placeholder.svg"}
@@ -625,7 +608,7 @@ export default function ARTryOn() {
       )}
 
       {/* Bottom tabs - Lenskart style */}
-      <div className="bg-gray-900 flex items-center justify-around py-1.5 px-1">
+      <div className="absolute left-0 right-0 bottom-0 z-20 bg-gray-900 flex items-center justify-around py-1.5 px-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
