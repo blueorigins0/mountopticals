@@ -54,61 +54,28 @@ function TrackedGlasses({
       return { box, size, center };
     };
 
-    const rotationCandidates = [
-      { x: 0, y: 0, z: 0 },
-      { x: 0, y: Math.PI, z: 0 },
-    ];
+    const recenterAndMeasure = (object: THREE.Object3D) => {
+      const { center } = getBounds(object);
+      object.position.sub(center);
+      return getBounds(object);
+    };
 
-    let bestScene: THREE.Object3D | null = null;
-    let bestScore = -Infinity;
-
-    for (const candidate of rotationCandidates) {
-      const candidateScene = scene.clone(true);
-      candidateScene.rotation.set(candidate.x, candidate.y, candidate.z);
-
-      const initialBounds = getBounds(candidateScene);
-      candidateScene.position.sub(initialBounds.center);
-
-      const centeredBounds = getBounds(candidateScene);
-      const frontDepth = Math.max(0, centeredBounds.box.max.z);
-      const backDepth = Math.max(0, -centeredBounds.box.min.z);
-
-      const widthHeightRatio = centeredBounds.size.x / Math.max(centeredBounds.size.y, 0.001);
-      const depthPenalty = centeredBounds.size.z / Math.max(centeredBounds.size.x, 0.001);
-      const orientationBias = backDepth - frontDepth * 1.6;
-      const score = widthHeightRatio - depthPenalty * 2.6 + orientationBias * 0.22;
-
-      const shouldReplace =
-        score > bestScore + 1e-6 ||
-        (Math.abs(score - bestScore) <= 1e-6 && candidate.y === 0);
-
-      if (shouldReplace) {
-        bestScore = score;
-        bestScene = candidateScene;
-      }
-    }
-
-    const finalScene = bestScene ?? scene.clone(true);
-    let { box: finalBox, size: finalSize, center: finalCenter } = getBounds(finalScene);
-
-    finalScene.position.sub(finalCenter);
-    ({ box: finalBox, size: finalSize } = getBounds(finalScene));
+    const finalScene = scene.clone(true);
+    let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
 
     const frontDepth = Math.max(0, finalBox.max.z);
     const backDepth = Math.max(0, -finalBox.min.z);
 
-    if (frontDepth > backDepth * 1.08) {
+    // Default orientation: temples should extend towards back (ears), not front.
+    if (frontDepth > backDepth) {
       finalScene.rotation.y += Math.PI;
-      ({ center: finalCenter } = getBounds(finalScene));
-      finalScene.position.sub(finalCenter);
-      ({ size: finalSize } = getBounds(finalScene));
+      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
+    // Manual admin override for problematic assets.
     if (forceFlipFrontBack) {
       finalScene.rotation.y += Math.PI;
-      ({ center: finalCenter } = getBounds(finalScene));
-      finalScene.position.sub(finalCenter);
-      ({ size: finalSize } = getBounds(finalScene));
+      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
     finalScene.position.y -= finalSize.y * 0.03;
