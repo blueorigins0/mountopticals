@@ -251,6 +251,7 @@ export default function FaceTracker3D({
   fitScaleMultiplier = 1,
   fitYOffset = 0,
   fitTiltMultiplier = 1,
+  forceFlipFrontBack = false,
   onModelLoaded,
 }: FaceTracker3DProps) {
   if (!canvasWidth || !canvasHeight) return null;
