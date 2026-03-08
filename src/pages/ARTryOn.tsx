@@ -66,6 +66,9 @@ export default function ARTryOn() {
   const has3DModel = Boolean(product?.ar_model_url);
   const use3DOverlay = !hasArPhotoAsset && has3DModel && modelRenderStatus === "ready";
   const use2DOverlay = hasArPhotoAsset || !use3DOverlay;
+  const fitScaleMultiplier = Math.max(0.4, Number(product?.ar_fit_scale ?? 1));
+  const fitYOffset = Number(product?.ar_fit_y_offset ?? 0);
+  const fitTiltMultiplier = Math.max(0.2, Number(product?.ar_fit_tilt_multiplier ?? 1));
 
   // Load product
   useEffect(() => {
@@ -73,7 +76,7 @@ export default function ARTryOn() {
       if (!productId) return;
       const { data } = await supabase
         .from("products")
-        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url")
+        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url, ar_fit_scale, ar_fit_y_offset, ar_fit_tilt_multiplier")
         .eq("id", productId)
         .maybeSingle();
       if (data) setProduct(data as unknown as Product);
