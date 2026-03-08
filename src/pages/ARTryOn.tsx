@@ -70,6 +70,7 @@ export default function ARTryOn() {
   const fitScaleMultiplier = Math.max(0.4, Number(product?.ar_fit_scale ?? 1));
   const fitYOffset = Number(product?.ar_fit_y_offset ?? 0);
   const fitTiltMultiplier = Math.max(0.2, Number(product?.ar_fit_tilt_multiplier ?? 1));
+  const forceFlipFrontBack = Boolean(product?.ar_flip_front_back);
 
   // Load product
   useEffect(() => {
