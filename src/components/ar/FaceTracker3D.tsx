@@ -22,6 +22,7 @@ interface FaceTracker3DProps {
   fitScaleMultiplier?: number;
   fitYOffset?: number;
   fitTiltMultiplier?: number;
+  forceFlipFrontBack?: boolean;
   onModelLoaded?: () => void;
 }
 
