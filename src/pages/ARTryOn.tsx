@@ -342,10 +342,10 @@ export default function ARTryOn() {
                   overlayState.angle = targetAngle;
                   overlayState.initialized = true;
                 } else {
-                  overlayState.x += (targetCenterX - overlayState.x) * 0.22;
-                  overlayState.y += (targetCenterY - overlayState.y) * 0.22;
-                  overlayState.width += (targetWidth - overlayState.width) * 0.22;
-                  overlayState.angle += (targetAngle - overlayState.angle) * 0.22;
+                  overlayState.x += (targetCenterX - overlayState.x) * 0.3;
+                  overlayState.y += (targetCenterY - overlayState.y) * 0.3;
+                  overlayState.width += (targetWidth - overlayState.width) * 0.28;
+                  overlayState.angle += (targetAngle - overlayState.angle) * 0.24;
                 }
 
                 const renderHeight = overlayState.width * aspectRatio;
