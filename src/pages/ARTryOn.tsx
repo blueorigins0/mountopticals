@@ -438,7 +438,7 @@ export default function ARTryOn() {
   ];
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="h-[100dvh] bg-black relative overflow-hidden">
       {/* Floating top bar */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-3">
         <button
@@ -461,7 +461,7 @@ export default function ARTryOn() {
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
         {activeTab === "tryon" && (
           <div ref={tryOnStageRef} className="absolute inset-0">
             {!cameraActive && (
