@@ -33,6 +33,7 @@ function TrackedGlasses({
   fitScaleMultiplier = 1,
   fitYOffset = 0,
   fitTiltMultiplier = 1,
+  forceFlipFrontBack = false,
   onModelLoaded,
 }: Omit<FaceTracker3DProps, "canvasWidth" | "canvasHeight">) {
   const { scene } = useGLTF(modelUrl);
