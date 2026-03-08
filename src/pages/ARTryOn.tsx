@@ -198,23 +198,6 @@ export default function ARTryOn() {
         },
       });
 
-      const [videoTrack] = stream.getVideoTracks();
-      if (videoTrack) {
-        try {
-          const capabilities = (videoTrack.getCapabilities?.() ?? {}) as {
-            zoom?: { min?: number };
-          };
-
-          if (typeof capabilities.zoom?.min === "number") {
-            await videoTrack.applyConstraints({
-              advanced: [{ zoom: capabilities.zoom.min } as any],
-            });
-          }
-        } catch {
-          // Some devices don't support zoom constraints.
-        }
-      }
-
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
