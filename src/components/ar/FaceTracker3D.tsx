@@ -175,14 +175,14 @@ function TrackedGlasses({
     const worldY = -(targetYCanvas - metrics.canvasHeight / 2);
 
     targetPosition.current.set(worldX, worldY, 0);
-    smoothedPosition.current.lerp(targetPosition.current, 0.24);
-    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.24);
+    smoothedPosition.current.lerp(targetPosition.current, 0.38);
+    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.36);
 
     group.position.copy(smoothedPosition.current);
     group.scale.setScalar(smoothedScale.current);
-    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.22);
-    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.22);
-    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.22);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.34);
+    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.34);
+    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.34);
   });
 
   return (
