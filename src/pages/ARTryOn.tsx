@@ -265,7 +265,7 @@ export default function ARTryOn() {
           : prev
       );
 
-      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight) * 1.12;
       const drawWidth = video.videoWidth * drawScale;
       const drawHeight = video.videoHeight * drawScale;
       const offsetX = (canvas.width - drawWidth) / 2;
