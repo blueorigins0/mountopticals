@@ -504,6 +504,9 @@ export default function ARTryOn() {
                   frameMetricsRef={frameMetricsRef}
                   canvasWidth={videoDims.w}
                   canvasHeight={videoDims.h}
+                  fitScaleMultiplier={fitScaleMultiplier}
+                  fitYOffset={fitYOffset}
+                  fitTiltMultiplier={fitTiltMultiplier}
                   onModelLoaded={() => setModelRenderStatus("ready")}
                 />
               </Suspense>

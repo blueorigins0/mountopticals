@@ -1574,6 +1574,51 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                   </div>
                 </div>
               </div>
+
+              <div className="border rounded-lg p-3 space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">AR Calibration Controls</Label>
+                  <p className="text-xs text-muted-foreground">Per-product fitting for scale, vertical placement, and tilt sensitivity.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Scale</Label>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="0.4"
+                      max="3"
+                      value={arFitScale}
+                      onChange={(e) => setArFitScale(e.target.value)}
+                      placeholder="1.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Vertical Offset</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="-0.5"
+                      max="0.5"
+                      value={arFitYOffset}
+                      onChange={(e) => setArFitYOffset(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tilt Multiplier</Label>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="0.2"
+                      max="2"
+                      value={arFitTiltMultiplier}
+                      onChange={(e) => setArFitTiltMultiplier(e.target.value)}
+                      placeholder="1.00"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </CollapsibleSection>
 
