@@ -396,7 +396,7 @@ export default function ARTryOn() {
       }
       video.removeEventListener("playing", onPlaying);
     };
-  }, [cameraActive, faceLandmarker, use2DOverlay, product?.ar_image]);
+  }, [cameraActive, faceLandmarker, use2DOverlay, product?.ar_image, fitScaleMultiplier, fitYOffset, fitTiltMultiplier]);
 
   useEffect(() => {
     return () => stopCamera();
