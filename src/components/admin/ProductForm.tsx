@@ -498,6 +498,9 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
         tax_class: taxClass,
         ar_image: arImage || null,
         ar_model_url: arModelUrl || null,
+        ar_fit_scale: Math.max(0.4, parseFloat(arFitScale) || 1),
+        ar_fit_y_offset: parseFloat(arFitYOffset) || 0,
+        ar_fit_tilt_multiplier: Math.max(0.2, parseFloat(arFitTiltMultiplier) || 1),
       } as any;
 
       let productId = product?.id;
