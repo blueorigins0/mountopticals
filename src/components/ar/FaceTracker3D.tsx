@@ -42,9 +42,19 @@ function TrackedGlasses({
   const smoothedScale = useRef(1);
 
   const { normalizedScene, baseModelWidth } = useMemo(() => {
+    const getBounds = (object: THREE.Object3D) => {
+      object.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(object);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+      return { box, size, center };
+    };
+
     const rotationCandidates = [
-      { x: 0, y: Math.PI, z: 0 },
       { x: 0, y: 0, z: 0 },
+      { x: 0, y: Math.PI, z: 0 },
     ];
 
     let bestScene: THREE.Object3D | null = null;
@@ -53,28 +63,22 @@ function TrackedGlasses({
     for (const candidate of rotationCandidates) {
       const candidateScene = scene.clone(true);
       candidateScene.rotation.set(candidate.x, candidate.y, candidate.z);
-      candidateScene.updateMatrixWorld(true);
 
-      const box = new THREE.Box3().setFromObject(candidateScene);
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
+      const initialBounds = getBounds(candidateScene);
+      candidateScene.position.sub(initialBounds.center);
 
-      const frontDepth = Math.max(0, box.max.z);
-      const backDepth = Math.max(0, -box.min.z);
+      const centeredBounds = getBounds(candidateScene);
+      const frontDepth = Math.max(0, centeredBounds.box.max.z);
+      const backDepth = Math.max(0, -centeredBounds.box.min.z);
 
-      candidateScene.position.sub(center);
-      candidateScene.updateMatrixWorld(true);
-
-      const widthHeightRatio = size.x / Math.max(size.y, 0.001);
-      const depthPenalty = size.z / Math.max(size.x, 0.001);
-      const orientationBias = backDepth - frontDepth * 1.4;
-      const score = widthHeightRatio - depthPenalty * 2.4 + orientationBias * 0.08;
+      const widthHeightRatio = centeredBounds.size.x / Math.max(centeredBounds.size.y, 0.001);
+      const depthPenalty = centeredBounds.size.z / Math.max(centeredBounds.size.x, 0.001);
+      const orientationBias = backDepth - frontDepth * 1.6;
+      const score = widthHeightRatio - depthPenalty * 2.6 + orientationBias * 0.22;
 
       const shouldReplace =
         score > bestScore + 1e-6 ||
-        (Math.abs(score - bestScore) <= 1e-6 && candidate.y === Math.PI);
+        (Math.abs(score - bestScore) <= 1e-6 && candidate.y === 0);
 
       if (shouldReplace) {
         bestScore = score;
@@ -83,15 +87,21 @@ function TrackedGlasses({
     }
 
     const finalScene = bestScene ?? scene.clone(true);
-    finalScene.updateMatrixWorld(true);
-
-    const finalBox = new THREE.Box3().setFromObject(finalScene);
-    const finalSize = new THREE.Vector3();
-    const finalCenter = new THREE.Vector3();
-    finalBox.getSize(finalSize);
-    finalBox.getCenter(finalCenter);
+    let { box: finalBox, size: finalSize, center: finalCenter } = getBounds(finalScene);
 
     finalScene.position.sub(finalCenter);
+    ({ box: finalBox, size: finalSize } = getBounds(finalScene));
+
+    const frontDepth = Math.max(0, finalBox.max.z);
+    const backDepth = Math.max(0, -finalBox.min.z);
+
+    if (frontDepth > backDepth * 1.08) {
+      finalScene.rotation.y += Math.PI;
+      ({ center: finalCenter } = getBounds(finalScene));
+      finalScene.position.sub(finalCenter);
+      ({ size: finalSize } = getBounds(finalScene));
+    }
+
     finalScene.position.y -= finalSize.y * 0.03;
     finalScene.updateMatrixWorld(true);
 
