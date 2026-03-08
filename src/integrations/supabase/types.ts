@@ -870,6 +870,9 @@ export type Database = {
       }
       products: {
         Row: {
+          ar_fit_scale: number
+          ar_fit_tilt_multiplier: number
+          ar_fit_y_offset: number
           ar_image: string | null
           ar_model_url: string | null
           brand_id: string | null
@@ -905,6 +908,9 @@ export type Database = {
           width: number | null
         }
         Insert: {
+          ar_fit_scale?: number
+          ar_fit_tilt_multiplier?: number
+          ar_fit_y_offset?: number
           ar_image?: string | null
           ar_model_url?: string | null
           brand_id?: string | null
@@ -940,6 +946,9 @@ export type Database = {
           width?: number | null
         }
         Update: {
+          ar_fit_scale?: number
+          ar_fit_tilt_multiplier?: number
+          ar_fit_y_offset?: number
           ar_image?: string | null
           ar_model_url?: string | null
           brand_id?: string | null
