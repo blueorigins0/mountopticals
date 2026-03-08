@@ -43,8 +43,8 @@ function TrackedGlasses({
 
   const { normalizedScene, baseModelWidth } = useMemo(() => {
     const rotationCandidates = [
-      { x: 0, y: 0, z: 0 },
       { x: 0, y: Math.PI, z: 0 },
+      { x: 0, y: 0, z: 0 },
     ];
 
     let bestScene: THREE.Object3D | null = null;
@@ -61,15 +61,22 @@ function TrackedGlasses({
       box.getSize(size);
       box.getCenter(center);
 
+      const frontDepth = Math.max(0, box.max.z);
+      const backDepth = Math.max(0, -box.min.z);
+
       candidateScene.position.sub(center);
       candidateScene.updateMatrixWorld(true);
 
       const widthHeightRatio = size.x / Math.max(size.y, 0.001);
       const depthPenalty = size.z / Math.max(size.x, 0.001);
-      const score = widthHeightRatio - depthPenalty * 2.4;
+      const orientationBias = backDepth - frontDepth * 1.4;
+      const score = widthHeightRatio - depthPenalty * 2.4 + orientationBias * 0.08;
 
+      const shouldReplace =
+        score > bestScore + 1e-6 ||
+        (Math.abs(score - bestScore) <= 1e-6 && candidate.y === Math.PI);
 
-      if (score > bestScore) {
+      if (shouldReplace) {
         bestScore = score;
         bestScene = candidateScene;
       }
