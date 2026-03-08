@@ -138,6 +138,7 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   const [arFitScale, setArFitScale] = useState(((product as any)?.ar_fit_scale ?? 1).toString());
   const [arFitYOffset, setArFitYOffset] = useState(((product as any)?.ar_fit_y_offset ?? 0).toString());
   const [arFitTiltMultiplier, setArFitTiltMultiplier] = useState(((product as any)?.ar_fit_tilt_multiplier ?? 1).toString());
+  const [arFlipFrontBack, setArFlipFrontBack] = useState(Boolean((product as any)?.ar_flip_front_back));
 
   // Simple Product Pricing (3-Tier)
   const [shopPrice, setShopPrice] = useState(product?.shop_price?.toString() || "");
@@ -501,6 +502,7 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
         ar_fit_scale: Math.max(0.4, parseFloat(arFitScale) || 1),
         ar_fit_y_offset: parseFloat(arFitYOffset) || 0,
         ar_fit_tilt_multiplier: Math.max(0.2, parseFloat(arFitTiltMultiplier) || 1),
+        ar_flip_front_back: arFlipFrontBack,
       } as any;
 
       let productId = product?.id;
@@ -1617,6 +1619,14 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                       placeholder="1.00"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-border p-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-xs">Flip Front/Back</Label>
+                    <p className="text-[11px] text-muted-foreground">Enable this if temples look reversed and appear in front of face.</p>
+                  </div>
+                  <Switch checked={arFlipFrontBack} onCheckedChange={setArFlipFrontBack} />
                 </div>
               </div>
             </div>
