@@ -166,9 +166,10 @@ export default function ARTryOn() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "user" },
-          width: { ideal: 960 },
-          height: { ideal: 1280 },
-          aspectRatio: { ideal: 3 / 4 },
+          width: { ideal: 720, min: 480 },
+          height: { ideal: 1280, min: 640 },
+          aspectRatio: { ideal: 9 / 16 },
+          frameRate: { ideal: 30, max: 30 },
         },
       });
 
