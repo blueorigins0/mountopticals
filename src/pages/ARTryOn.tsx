@@ -144,45 +144,19 @@ export default function ARTryOn() {
     initFaceLandmarker();
   }, []);
 
-  // Validate GLB/GLTF URL and fallback to 2D when URL is invalid/inaccessible
+  // Model readiness: prefer direct render when URL format looks like GLB/GLTF
+  // (network pre-checks can fail due CORS and incorrectly force 2D fallback)
   useEffect(() => {
-    let isMounted = true;
+    const modelUrl = product?.ar_model_url;
 
-    const verifyModelUrl = async () => {
-      const modelUrl = product?.ar_model_url;
+    if (!modelUrl) {
+      setModelRenderStatus("idle");
+      return;
+    }
 
-      if (!modelUrl) {
-        if (isMounted) setModelRenderStatus("idle");
-        return;
-      }
-
-      if (isMounted) setModelRenderStatus("checking");
-
-      try {
-        const response = await fetch(modelUrl, { method: "GET" });
-        const contentType = (response.headers.get("content-type") || "").toLowerCase();
-        const lowerUrl = modelUrl.toLowerCase();
-
-        const looksLikeModel =
-          lowerUrl.endsWith(".glb") ||
-          lowerUrl.endsWith(".gltf") ||
-          contentType.includes("model/gltf-binary") ||
-          contentType.includes("model/gltf+json") ||
-          contentType.includes("application/octet-stream") ||
-          contentType.includes("binary/octet-stream");
-
-        if (!isMounted) return;
-        setModelRenderStatus(response.ok && looksLikeModel ? "ready" : "failed");
-      } catch {
-        if (isMounted) setModelRenderStatus("failed");
-      }
-    };
-
-    verifyModelUrl();
-
-    return () => {
-      isMounted = false;
-    };
+    const lowerUrl = modelUrl.toLowerCase();
+    const isModelLike = /\.(glb|gltf)(\?|#|$)/.test(lowerUrl);
+    setModelRenderStatus(isModelLike ? "ready" : "failed");
   }, [product?.ar_model_url]);
 
   const startCamera = useCallback(async () => {
