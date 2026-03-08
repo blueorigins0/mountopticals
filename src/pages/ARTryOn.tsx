@@ -144,45 +144,19 @@ export default function ARTryOn() {
     initFaceLandmarker();
   }, []);
 
-  // Validate GLB/GLTF URL and fallback to 2D when URL is invalid/inaccessible
+  // Model readiness: prefer direct render when URL format looks like GLB/GLTF
+  // (network pre-checks can fail due CORS and incorrectly force 2D fallback)
   useEffect(() => {
-    let isMounted = true;
+    const modelUrl = product?.ar_model_url;
 
-    const verifyModelUrl = async () => {
-      const modelUrl = product?.ar_model_url;
+    if (!modelUrl) {
+      setModelRenderStatus("idle");
+      return;
+    }
 
-      if (!modelUrl) {
-        if (isMounted) setModelRenderStatus("idle");
-        return;
-      }
-
-      if (isMounted) setModelRenderStatus("checking");
-
-      try {
-        const response = await fetch(modelUrl, { method: "GET" });
-        const contentType = (response.headers.get("content-type") || "").toLowerCase();
-        const lowerUrl = modelUrl.toLowerCase();
-
-        const looksLikeModel =
-          lowerUrl.endsWith(".glb") ||
-          lowerUrl.endsWith(".gltf") ||
-          contentType.includes("model/gltf-binary") ||
-          contentType.includes("model/gltf+json") ||
-          contentType.includes("application/octet-stream") ||
-          contentType.includes("binary/octet-stream");
-
-        if (!isMounted) return;
-        setModelRenderStatus(response.ok && looksLikeModel ? "ready" : "failed");
-      } catch {
-        if (isMounted) setModelRenderStatus("failed");
-      }
-    };
-
-    verifyModelUrl();
-
-    return () => {
-      isMounted = false;
-    };
+    const lowerUrl = modelUrl.toLowerCase();
+    const isModelLike = /\.(glb|gltf)(\?|#|$)/.test(lowerUrl);
+    setModelRenderStatus(isModelLike ? "ready" : "failed");
   }, [product?.ar_model_url]);
 
   const startCamera = useCallback(async () => {
@@ -192,9 +166,10 @@ export default function ARTryOn() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "user" },
-          width: { ideal: 960 },
-          height: { ideal: 1280 },
-          aspectRatio: { ideal: 3 / 4 },
+          width: { ideal: 720, min: 480 },
+          height: { ideal: 1280, min: 640 },
+          aspectRatio: { ideal: 9 / 16 },
+          frameRate: { ideal: 30, max: 30 },
         },
       });
 
@@ -265,7 +240,7 @@ export default function ARTryOn() {
           : prev
       );
 
-      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight) * 1.12;
+      const drawScale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
       const drawWidth = video.videoWidth * drawScale;
       const drawHeight = video.videoHeight * drawScale;
       const offsetX = (canvas.width - drawWidth) / 2;
@@ -332,8 +307,8 @@ export default function ARTryOn() {
 
                 const hasArImage = !!product?.ar_image;
                 const targetWidth = Math.max(
-                  eyeDistance * (hasArImage ? 1.9 : 1.6),
-                  frameDistance * (hasArImage ? 1.02 : 0.9)
+                  eyeDistance * (hasArImage ? 2.25 : 2.05),
+                  frameDistance * (hasArImage ? 1.2 : 1.12)
                 );
 
                 const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
@@ -343,12 +318,12 @@ export default function ARTryOn() {
                 const noseDrop = Math.max(0, noseTip.y - eyeMidY);
                 const depthDiff = (landmarks[263]?.z ?? 0) - (landmarks[33]?.z ?? 0);
                 const horizontalShift = Math.max(
-                  -eyeDistance * 0.2,
-                  Math.min(eyeDistance * 0.2, -depthDiff * eyeDistance * 0.95)
+                  -eyeDistance * 0.18,
+                  Math.min(eyeDistance * 0.18, -depthDiff * eyeDistance * 0.8)
                 );
 
                 const targetCenterX = (leftEyeOuter.x + rightEyeOuter.x) / 2 + horizontalShift;
-                const targetCenterY = eyeMidY + eyeDistance * 0.075 + noseDrop * 0.14;
+                const targetCenterY = eyeMidY + eyeDistance * 0.012 + noseDrop * 0.07;
 
                 const rawAngle = Math.atan2(
                   rightEyeOuter.y - leftEyeOuter.y,
@@ -367,10 +342,10 @@ export default function ARTryOn() {
                   overlayState.angle = targetAngle;
                   overlayState.initialized = true;
                 } else {
-                  overlayState.x += (targetCenterX - overlayState.x) * 0.22;
-                  overlayState.y += (targetCenterY - overlayState.y) * 0.22;
-                  overlayState.width += (targetWidth - overlayState.width) * 0.22;
-                  overlayState.angle += (targetAngle - overlayState.angle) * 0.22;
+                  overlayState.x += (targetCenterX - overlayState.x) * 0.3;
+                  overlayState.y += (targetCenterY - overlayState.y) * 0.3;
+                  overlayState.width += (targetWidth - overlayState.width) * 0.28;
+                  overlayState.angle += (targetAngle - overlayState.angle) * 0.24;
                 }
 
                 const renderHeight = overlayState.width * aspectRatio;
