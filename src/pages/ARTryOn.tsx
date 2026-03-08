@@ -578,7 +578,7 @@ export default function ARTryOn() {
 
       {/* Bottom product card */}
       {product && (
-        <div className="bg-white p-3 flex items-center gap-3">
+        <div className="absolute left-0 right-0 bottom-[74px] z-20 bg-white p-3 flex items-center gap-3">
           <div className="w-20 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
             <img
               src={product.images?.[0] || "/placeholder.svg"}
@@ -608,7 +608,7 @@ export default function ARTryOn() {
       )}
 
       {/* Bottom tabs - Lenskart style */}
-      <div className="bg-gray-900 flex items-center justify-around py-1.5 px-1">
+      <div className="absolute left-0 right-0 bottom-0 z-20 bg-gray-900 flex items-center justify-around py-1.5 px-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
