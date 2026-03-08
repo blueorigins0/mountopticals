@@ -338,7 +338,7 @@ export default function ARTryOn() {
                 let normalizedAngle = rawAngle;
                 if (normalizedAngle > Math.PI / 2) normalizedAngle -= Math.PI;
                 if (normalizedAngle < -Math.PI / 2) normalizedAngle += Math.PI;
-                const targetAngle = normalizedAngle * 0.65;
+                const targetAngle = normalizedAngle * 0.65 * fitTiltMultiplier;
 
                 const overlayState = overlayStateRef.current;
                 if (!overlayState.initialized) {
