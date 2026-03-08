@@ -104,6 +104,13 @@ function TrackedGlasses({
       ({ size: finalSize } = getBounds(finalScene));
     }
 
+    if (forceFlipFrontBack) {
+      finalScene.rotation.y += Math.PI;
+      ({ center: finalCenter } = getBounds(finalScene));
+      finalScene.position.sub(finalCenter);
+      ({ size: finalSize } = getBounds(finalScene));
+    }
+
     finalScene.position.y -= finalSize.y * 0.03;
     finalScene.updateMatrixWorld(true);
 
