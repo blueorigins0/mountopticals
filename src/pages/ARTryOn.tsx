@@ -562,7 +562,7 @@ export default function ARTryOn() {
         )}
 
         {activeTab === "videos" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6">
+          <div className="flex flex-col items-center gap-4 text-center px-6 pt-24 pb-52">
             <Video className="h-16 w-16 text-white/30" />
             <p className="text-white/60 text-sm">No videos available</p>
           </div>
