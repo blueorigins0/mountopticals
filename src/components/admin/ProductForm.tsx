@@ -1620,6 +1620,14 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                     />
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between rounded-md border border-border p-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-xs">Flip Front/Back</Label>
+                    <p className="text-[11px] text-muted-foreground">Enable this if temples look reversed and appear in front of face.</p>
+                  </div>
+                  <Switch checked={arFlipFrontBack} onCheckedChange={setArFlipFrontBack} />
+                </div>
               </div>
             </div>
           </CollapsibleSection>
