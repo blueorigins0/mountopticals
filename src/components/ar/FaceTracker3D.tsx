@@ -19,6 +19,9 @@ interface FaceTracker3DProps {
   frameMetricsRef: React.MutableRefObject<TrackingFrameMetrics | null>;
   canvasWidth: number;
   canvasHeight: number;
+  fitScaleMultiplier?: number;
+  fitYOffset?: number;
+  fitTiltMultiplier?: number;
   onModelLoaded?: () => void;
 }
 
