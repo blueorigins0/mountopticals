@@ -289,6 +289,7 @@ export default function FaceTracker3D({
         fitScaleMultiplier={fitScaleMultiplier}
         fitYOffset={fitYOffset}
         fitTiltMultiplier={fitTiltMultiplier}
+        forceFlipFrontBack={forceFlipFrontBack}
         onModelLoaded={onModelLoaded}
       />
     </Canvas>
