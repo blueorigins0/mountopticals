@@ -43,7 +43,7 @@ function TrackedGlasses({
   const targetPosition = useRef(new THREE.Vector3());
   const smoothedScale = useRef(1);
 
-  const { normalizedScene, baseModelWidth } = useMemo(() => {
+  const { normalizedScene, baseModelWidth, isFrontBackFlipped } = useMemo(() => {
     const getBounds = (object: THREE.Object3D) => {
       object.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(object);
@@ -62,6 +62,7 @@ function TrackedGlasses({
 
     const finalScene = scene.clone(true);
     let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
+    let didFlipFrontBack = false;
 
     const frontDepth = Math.max(0, finalBox.max.z);
     const backDepth = Math.max(0, -finalBox.min.z);
@@ -69,12 +70,14 @@ function TrackedGlasses({
     // Default orientation: temples should extend towards back (ears), not front.
     if (frontDepth > backDepth) {
       finalScene.rotation.y += Math.PI;
+      didFlipFrontBack = !didFlipFrontBack;
       ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
     // Manual admin override for problematic assets.
     if (forceFlipFrontBack) {
       finalScene.rotation.y += Math.PI;
+      didFlipFrontBack = !didFlipFrontBack;
       ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
@@ -86,6 +89,7 @@ function TrackedGlasses({
     return {
       normalizedScene: finalScene,
       baseModelWidth: computedWidth,
+      isFrontBackFlipped: didFlipFrontBack,
     };
   }, [scene, forceFlipFrontBack]);
 
