@@ -543,7 +543,7 @@ export default function ARTryOn() {
         )}
 
         {activeTab === "photos" && (
-          <div className="flex flex-col items-center gap-4 text-center px-6 w-full">
+          <div className="flex flex-col items-center gap-4 text-center px-6 w-full pt-24 pb-52">
             {product?.images?.length ? (
               <div className="grid grid-cols-2 gap-2 p-4 max-w-md w-full">
                 {product.images.map((img, i) => (
