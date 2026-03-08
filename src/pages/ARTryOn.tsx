@@ -467,7 +467,7 @@ export default function ARTryOn() {
                     <p className="text-white/60 text-sm max-w-xs">
                       See how this eyewear looks on you using your camera
                     </p>
-                    {has3DModel && modelRenderStatus === "failed" && (
+                    {!hasArPhotoAsset && has3DModel && modelRenderStatus === "failed" && (
                       <p className="text-white/60 text-xs max-w-xs">
                         3D model URL inaccessible hai, isliye fallback try-on use hoga.
                       </p>

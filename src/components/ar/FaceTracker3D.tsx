@@ -144,8 +144,8 @@ function TrackedGlasses({
     const templeMidY = (leftTemple.y + rightTemple.y) / 2;
     const bridgeDrop = noseBridge.y - eyeMidY;
 
-    const targetWidth = THREE.MathUtils.lerp(eyeDist * 1.74, frameSpan * 1.22, 0.72);
-    const targetScale = THREE.MathUtils.clamp((targetWidth / baseModelWidth) * 1.08, 0.01, 1000);
+    const targetWidth = THREE.MathUtils.lerp(eyeDist * 1.92, frameSpan * 1.28, 0.75);
+    const targetScale = THREE.MathUtils.clamp((targetWidth / baseModelWidth) * 1.2, 0.01, 1000);
 
     const tiltAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
     let normalizedTiltAngle = tiltAngle;
@@ -153,16 +153,16 @@ function TrackedGlasses({
     if (normalizedTiltAngle < -Math.PI / 2) normalizedTiltAngle += Math.PI;
 
     const noseDropRatio = THREE.MathUtils.clamp(bridgeDrop / eyeDist, 0, 0.9);
-    const pitch = THREE.MathUtils.clamp((noseDropRatio - 0.16) * 0.28, -0.12, 0.12);
+    const pitch = THREE.MathUtils.clamp((noseDropRatio - 0.18) * 0.2, -0.08, 0.08);
 
     const templeDepthDiff =
       (landmarks[356]?.z ?? landmarks[263]?.z ?? 0) -
       (landmarks[127]?.z ?? landmarks[33]?.z ?? 0);
-    const yaw = THREE.MathUtils.clamp(-templeDepthDiff * 0.95, -0.12, 0.12);
-    const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.9, -0.22, 0.22);
+    const yaw = THREE.MathUtils.clamp(-templeDepthDiff * 0.68, -0.08, 0.08);
+    const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.72, -0.16, 0.16);
 
     const targetYCanvas =
-      THREE.MathUtils.lerp(eyeMidY + eyeDist * 0.012, templeMidY + eyeDist * 0.018, 0.16) + bridgeDrop * 0.18;
+      THREE.MathUtils.lerp(eyeMidY + eyeDist * 0.04, templeMidY + eyeDist * 0.045, 0.3) + bridgeDrop * 0.24;
 
     group.visible = true;
 
@@ -170,14 +170,14 @@ function TrackedGlasses({
     const worldY = -(targetYCanvas - metrics.canvasHeight / 2);
 
     targetPosition.current.set(worldX, worldY, 0);
-    smoothedPosition.current.lerp(targetPosition.current, 0.38);
-    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.36);
+    smoothedPosition.current.lerp(targetPosition.current, 0.34);
+    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, 0.34);
 
     group.position.copy(smoothedPosition.current);
     group.scale.setScalar(smoothedScale.current);
-    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.34);
-    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.34);
-    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.34);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, pitch, 0.28);
+    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, yaw, 0.28);
+    group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, roll, 0.28);
   });
 
   return (
