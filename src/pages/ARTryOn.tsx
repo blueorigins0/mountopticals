@@ -29,6 +29,9 @@ interface Product {
   regular_price: number;
   ar_image: string | null;
   ar_model_url: string | null;
+  ar_fit_scale: number;
+  ar_fit_y_offset: number;
+  ar_fit_tilt_multiplier: number;
 }
 
 type MediaTab = "tryon" | "photos" | "videos" | "360";
@@ -63,6 +66,9 @@ export default function ARTryOn() {
   const has3DModel = Boolean(product?.ar_model_url);
   const use3DOverlay = !hasArPhotoAsset && has3DModel && modelRenderStatus === "ready";
   const use2DOverlay = hasArPhotoAsset || !use3DOverlay;
+  const fitScaleMultiplier = Math.max(0.4, Number(product?.ar_fit_scale ?? 1));
+  const fitYOffset = Number(product?.ar_fit_y_offset ?? 0);
+  const fitTiltMultiplier = Math.max(0.2, Number(product?.ar_fit_tilt_multiplier ?? 1));
 
   // Load product
   useEffect(() => {
@@ -70,7 +76,7 @@ export default function ARTryOn() {
       if (!productId) return;
       const { data } = await supabase
         .from("products")
-        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url")
+        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url, ar_fit_scale, ar_fit_y_offset, ar_fit_tilt_multiplier")
         .eq("id", productId)
         .maybeSingle();
       if (data) setProduct(data as unknown as Product);
@@ -309,7 +315,7 @@ export default function ARTryOn() {
                 const targetWidth = Math.max(
                   eyeDistance * (hasArImage ? 2.45 : 2.15),
                   frameDistance * (hasArImage ? 1.32 : 1.18)
-                );
+                ) * fitScaleMultiplier;
 
                 const naturalAspect = glassesImgRef.current.height / glassesImgRef.current.width;
                 const aspectRatio = hasArImage ? naturalAspect : Math.min(naturalAspect, 0.42);
@@ -323,7 +329,7 @@ export default function ARTryOn() {
                 );
 
                 const targetCenterX = (leftEyeOuter.x + rightEyeOuter.x) / 2 + horizontalShift;
-                const targetCenterY = eyeMidY + eyeDistance * 0.04 + noseDrop * 0.12;
+                const targetCenterY = eyeMidY + eyeDistance * (0.04 + fitYOffset) + noseDrop * 0.12;
 
                 const rawAngle = Math.atan2(
                   rightEyeOuter.y - leftEyeOuter.y,
@@ -332,7 +338,7 @@ export default function ARTryOn() {
                 let normalizedAngle = rawAngle;
                 if (normalizedAngle > Math.PI / 2) normalizedAngle -= Math.PI;
                 if (normalizedAngle < -Math.PI / 2) normalizedAngle += Math.PI;
-                const targetAngle = normalizedAngle * 0.65;
+                const targetAngle = normalizedAngle * 0.65 * fitTiltMultiplier;
 
                 const overlayState = overlayStateRef.current;
                 if (!overlayState.initialized) {
@@ -390,7 +396,7 @@ export default function ARTryOn() {
       }
       video.removeEventListener("playing", onPlaying);
     };
-  }, [cameraActive, faceLandmarker, use2DOverlay, product?.ar_image]);
+  }, [cameraActive, faceLandmarker, use2DOverlay, product?.ar_image, fitScaleMultiplier, fitYOffset, fitTiltMultiplier]);
 
   useEffect(() => {
     return () => stopCamera();
@@ -498,6 +504,9 @@ export default function ARTryOn() {
                   frameMetricsRef={frameMetricsRef}
                   canvasWidth={videoDims.w}
                   canvasHeight={videoDims.h}
+                  fitScaleMultiplier={fitScaleMultiplier}
+                  fitYOffset={fitYOffset}
+                  fitTiltMultiplier={fitTiltMultiplier}
                   onModelLoaded={() => setModelRenderStatus("ready")}
                 />
               </Suspense>

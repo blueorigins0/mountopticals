@@ -135,6 +135,9 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   const [galleryImages, setGalleryImages] = useState<string[]>(product?.images?.slice(1) || []);
   const [arImage, setArImage] = useState((product as any)?.ar_image || "");
   const [arModelUrl, setArModelUrl] = useState((product as any)?.ar_model_url || "");
+  const [arFitScale, setArFitScale] = useState(((product as any)?.ar_fit_scale ?? 1).toString());
+  const [arFitYOffset, setArFitYOffset] = useState(((product as any)?.ar_fit_y_offset ?? 0).toString());
+  const [arFitTiltMultiplier, setArFitTiltMultiplier] = useState(((product as any)?.ar_fit_tilt_multiplier ?? 1).toString());
 
   // Simple Product Pricing (3-Tier)
   const [shopPrice, setShopPrice] = useState(product?.shop_price?.toString() || "");
@@ -495,6 +498,9 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
         tax_class: taxClass,
         ar_image: arImage || null,
         ar_model_url: arModelUrl || null,
+        ar_fit_scale: Math.max(0.4, parseFloat(arFitScale) || 1),
+        ar_fit_y_offset: parseFloat(arFitYOffset) || 0,
+        ar_fit_tilt_multiplier: Math.max(0.2, parseFloat(arFitTiltMultiplier) || 1),
       } as any;
 
       let productId = product?.id;
@@ -1564,6 +1570,51 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                       onChange={(e) => setArModelUrl(e.target.value)}
                       placeholder="https://example.com/model.glb"
                       className="text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-3 space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">AR Calibration Controls</Label>
+                  <p className="text-xs text-muted-foreground">Per-product fitting for scale, vertical placement, and tilt sensitivity.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Scale</Label>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="0.4"
+                      max="3"
+                      value={arFitScale}
+                      onChange={(e) => setArFitScale(e.target.value)}
+                      placeholder="1.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Vertical Offset</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="-0.5"
+                      max="0.5"
+                      value={arFitYOffset}
+                      onChange={(e) => setArFitYOffset(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tilt Multiplier</Label>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="0.2"
+                      max="2"
+                      value={arFitTiltMultiplier}
+                      onChange={(e) => setArFitTiltMultiplier(e.target.value)}
+                      placeholder="1.00"
                     />
                   </div>
                 </div>
