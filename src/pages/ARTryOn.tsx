@@ -64,8 +64,8 @@ export default function ARTryOn() {
 
   const hasArPhotoAsset = Boolean(product?.ar_image);
   const has3DModel = Boolean(product?.ar_model_url);
-  const use3DOverlay = !hasArPhotoAsset && has3DModel && modelRenderStatus === "ready";
-  const use2DOverlay = hasArPhotoAsset || !use3DOverlay;
+  const use3DOverlay = has3DModel && modelRenderStatus === "ready";
+  const use2DOverlay = !use3DOverlay;
   const fitScaleMultiplier = Math.max(0.4, Number(product?.ar_fit_scale ?? 1));
   const fitYOffset = Number(product?.ar_fit_y_offset ?? 0);
   const fitTiltMultiplier = Math.max(0.2, Number(product?.ar_fit_tilt_multiplier ?? 1));
