@@ -59,9 +59,10 @@ export default function ARTryOn() {
   const frameMetricsRef = useRef<TrackingFrameMetrics | null>(null);
   const overlayStateRef = useRef({ x: 0, y: 0, width: 0, angle: 0, initialized: false });
 
-  const has3DModel = !!product?.ar_model_url;
-  const use3DOverlay = has3DModel && modelRenderStatus === "ready";
-  const use2DOverlay = !use3DOverlay;
+  const hasArPhotoAsset = Boolean(product?.ar_image);
+  const has3DModel = Boolean(product?.ar_model_url);
+  const use3DOverlay = !hasArPhotoAsset && has3DModel && modelRenderStatus === "ready";
+  const use2DOverlay = hasArPhotoAsset || !use3DOverlay;
 
   // Load product
   useEffect(() => {
@@ -166,9 +167,8 @@ export default function ARTryOn() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "user" },
-          width: { ideal: 720, min: 480 },
-          height: { ideal: 1280, min: 640 },
-          aspectRatio: { ideal: 9 / 16 },
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
           frameRate: { ideal: 30, max: 30 },
         },
       });

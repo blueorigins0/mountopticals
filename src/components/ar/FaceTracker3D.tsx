@@ -39,12 +39,6 @@ function TrackedGlasses({
     const rotationCandidates = [
       { x: 0, y: 0, z: 0 },
       { x: 0, y: Math.PI, z: 0 },
-      { x: 0, y: 0, z: Math.PI },
-      { x: 0, y: Math.PI, z: Math.PI },
-      { x: Math.PI, y: 0, z: 0 },
-      { x: Math.PI, y: Math.PI, z: 0 },
-      { x: Math.PI, y: 0, z: Math.PI },
-      { x: Math.PI, y: Math.PI, z: Math.PI },
     ];
 
     let bestScene: THREE.Object3D | null = null;
@@ -66,11 +60,8 @@ function TrackedGlasses({
 
       const widthHeightRatio = size.x / Math.max(size.y, 0.001);
       const depthPenalty = size.z / Math.max(size.x, 0.001);
-      const orientationPenalty =
-        (Math.abs(candidate.x) > 0 ? 0.08 : 0) +
-        (Math.abs(candidate.z) > 0 ? 0.08 : 0) +
-        (Math.abs(candidate.y) > 0 ? 0.03 : 0);
-      const score = widthHeightRatio - depthPenalty * 2.1 - orientationPenalty;
+      const score = widthHeightRatio - depthPenalty * 2.4;
+
 
       if (score > bestScore) {
         bestScore = score;
