@@ -135,6 +135,9 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
   const [galleryImages, setGalleryImages] = useState<string[]>(product?.images?.slice(1) || []);
   const [arImage, setArImage] = useState((product as any)?.ar_image || "");
   const [arModelUrl, setArModelUrl] = useState((product as any)?.ar_model_url || "");
+  const [arFitScale, setArFitScale] = useState(((product as any)?.ar_fit_scale ?? 1).toString());
+  const [arFitYOffset, setArFitYOffset] = useState(((product as any)?.ar_fit_y_offset ?? 0).toString());
+  const [arFitTiltMultiplier, setArFitTiltMultiplier] = useState(((product as any)?.ar_fit_tilt_multiplier ?? 1).toString());
 
   // Simple Product Pricing (3-Tier)
   const [shopPrice, setShopPrice] = useState(product?.shop_price?.toString() || "");

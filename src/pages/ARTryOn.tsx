@@ -29,6 +29,9 @@ interface Product {
   regular_price: number;
   ar_image: string | null;
   ar_model_url: string | null;
+  ar_fit_scale: number;
+  ar_fit_y_offset: number;
+  ar_fit_tilt_multiplier: number;
 }
 
 type MediaTab = "tryon" | "photos" | "videos" | "360";
