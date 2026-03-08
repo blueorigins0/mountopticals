@@ -509,6 +509,7 @@ export default function ARTryOn() {
                   fitScaleMultiplier={fitScaleMultiplier}
                   fitYOffset={fitYOffset}
                   fitTiltMultiplier={fitTiltMultiplier}
+                  forceFlipFrontBack={forceFlipFrontBack}
                   onModelLoaded={() => setModelRenderStatus("ready")}
                 />
               </Suspense>
