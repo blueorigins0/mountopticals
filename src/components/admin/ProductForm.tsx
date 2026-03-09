@@ -53,6 +53,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
 import { ImageUpload, GalleryUpload } from "@/components/admin/ImageUpload";
+import ModelViewer from "@/components/ar/ModelViewer";
 
 type Product = Tables<"products">;
 type Category = Tables<"categories">;

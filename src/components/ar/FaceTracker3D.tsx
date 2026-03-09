@@ -2,6 +2,7 @@ import { useRef, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { normalizeGlassesScene } from "./modelOrientation";
 
 export interface TrackingFrameMetrics {
   canvasWidth: number;
