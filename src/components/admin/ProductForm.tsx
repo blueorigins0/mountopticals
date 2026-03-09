@@ -53,6 +53,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
 import { ImageUpload, GalleryUpload } from "@/components/admin/ImageUpload";
+import ModelViewer from "@/components/ar/ModelViewer";
 
 type Product = Tables<"products">;
 type Category = Tables<"categories">;
@@ -1621,13 +1622,40 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-md border border-border p-2">
+                <div className="space-y-2 rounded-md border border-border p-2">
                   <div className="space-y-0.5">
-                    <Label className="text-xs">Flip Front/Back</Label>
-                    <p className="text-[11px] text-muted-foreground">Enable this if temples look reversed and appear in front of face.</p>
+                    <Label className="text-xs">Live Orientation Compare</Label>
+                    <p className="text-[11px] text-muted-foreground">Switch instantly between Normal and Flipped before saving.</p>
                   </div>
-                  <Switch checked={arFlipFrontBack} onCheckedChange={setArFlipFrontBack} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={arFlipFrontBack ? "outline" : "default"}
+                      onClick={() => setArFlipFrontBack(false)}
+                    >
+                      Normal
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={arFlipFrontBack ? "default" : "outline"}
+                      onClick={() => setArFlipFrontBack(true)}
+                    >
+                      Flipped
+                    </Button>
+                  </div>
                 </div>
+
+                {arModelUrl && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">Live 3D Preview</Label>
+                    <p className="text-[11px] text-muted-foreground">Use the toggle above and rotate model to verify temples are behind ears.</p>
+                    <div className="h-48 rounded-lg overflow-hidden border border-border">
+                      <ModelViewer modelUrl={arModelUrl} forceFlipFrontBack={arFlipFrontBack} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CollapsibleSection>
