@@ -1626,9 +1626,26 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
 
                 <div className="space-y-2 rounded-md border border-border p-2">
                   <div className="space-y-0.5">
-                    <Label className="text-xs">Live Orientation Compare</Label>
-                    <p className="text-[11px] text-muted-foreground">Switch instantly between Normal and Flipped before saving.</p>
+                    <Label className="text-xs">Auto + Manual Orientation</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Auto orientation always on rahega; neeche se 0°/90°/180°/270° manual correction de sakte ho.
+                    </p>
                   </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {[0, 90, 180, 270].map((deg) => (
+                      <Button
+                        key={deg}
+                        type="button"
+                        size="sm"
+                        variant={arManualRotationDeg === deg ? "default" : "outline"}
+                        onClick={() => setArManualRotationDeg(deg)}
+                      >
+                        {deg}°
+                      </Button>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
@@ -1652,9 +1669,13 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                 {arModelUrl && (
                   <div className="space-y-2">
                     <Label className="text-xs">Live 3D Preview</Label>
-                    <p className="text-[11px] text-muted-foreground">Use the toggle above and rotate model to verify temples are behind ears.</p>
+                    <p className="text-[11px] text-muted-foreground">Quick selector use karke temples ko ear-side align karke save karo.</p>
                     <div className="h-48 rounded-lg overflow-hidden border border-border">
-                      <ModelViewer modelUrl={arModelUrl} forceFlipFrontBack={arFlipFrontBack} />
+                      <ModelViewer
+                        modelUrl={arModelUrl}
+                        forceFlipFrontBack={arFlipFrontBack}
+                        manualRotationDeg={arManualRotationDeg}
+                      />
                     </div>
                   </div>
                 )}
