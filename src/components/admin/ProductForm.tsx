@@ -505,6 +505,7 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
         ar_fit_y_offset: parseFloat(arFitYOffset) || 0,
         ar_fit_tilt_multiplier: Math.max(0.2, parseFloat(arFitTiltMultiplier) || 1),
         ar_flip_front_back: arFlipFrontBack,
+        ar_manual_rotation_deg: arManualRotationDeg,
       } as any;
 
       let productId = product?.id;
