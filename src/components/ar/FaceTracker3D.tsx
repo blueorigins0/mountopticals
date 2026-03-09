@@ -61,24 +61,15 @@ function TrackedGlasses({
     };
 
     const finalScene = scene.clone(true);
-    let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
+    let { size: finalSize } = recenterAndMeasure(finalScene);
     let didFlipFrontBack = false;
 
-    const frontDepth = Math.max(0, finalBox.max.z);
-    const backDepth = Math.max(0, -finalBox.min.z);
-
-    // Default orientation: temples should extend towards back (ears), not front.
-    if (frontDepth > backDepth) {
-      finalScene.rotation.y += Math.PI;
-      didFlipFrontBack = !didFlipFrontBack;
-      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
-    }
-
-    // Manual admin override for problematic assets.
+    // Keep source model orientation by default to avoid accidental mirror/side swaps.
+    // Use explicit admin flip only when a specific asset needs correction.
     if (forceFlipFrontBack) {
       finalScene.rotation.y += Math.PI;
-      didFlipFrontBack = !didFlipFrontBack;
-      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
+      didFlipFrontBack = true;
+      ({ size: finalSize } = recenterAndMeasure(finalScene));
     }
 
     finalScene.position.y -= finalSize.y * 0.03;
