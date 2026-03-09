@@ -12,8 +12,8 @@ interface NormalizedModelResult {
   isFrontBackFlipped: boolean;
 }
 
-const Y_ROTATION_STEP = Math.PI / 12; // 15°
-const Y_ROTATION_CANDIDATES = Array.from({ length: 24 }, (_, i) => i * Y_ROTATION_STEP);
+// Test 4 cardinal directions (0°, 90°, 180°, 270°)
+const CARDINAL_ROTATIONS = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
 
 const getBounds = (object: THREE.Object3D) => {
   object.updateMatrixWorld(true);
@@ -28,31 +28,37 @@ const getBounds = (object: THREE.Object3D) => {
 const recenterAndMeasure = (object: THREE.Object3D) => {
   const { center } = getBounds(object);
   object.position.sub(center);
+  object.updateMatrixWorld(true);
   return getBounds(object);
 };
 
-const scoreOrientation = (box: THREE.Box3, size: THREE.Vector3) => {
-  const safeDepth = Math.max(size.z, 0.001);
-  const safeHeight = Math.max(size.y, 0.001);
+/**
+ * Score an orientation for eyewear frontal view.
+ * Ideal glasses orientation:
+ * - Wide on X-axis (left-right frame width)
+ * - Short on Y-axis (lens height)
+ * - Thin on Z-axis (front-back depth, temples should extend backward)
+ */
+const scoreOrientation = (size: THREE.Vector3, box: THREE.Box3) => {
+  const safeX = Math.max(size.x, 0.001);
+  const safeY = Math.max(size.y, 0.001);
+  const safeZ = Math.max(size.z, 0.001);
 
-  // Frontal orientation for eyewear should be wide (x) and thin (z)
-  const widthDepthRatio = size.x / safeDepth;
-  const widthHeightRatio = size.x / safeHeight;
+  // Primary: X should be the largest dimension (frame width)
+  const xIsWidest = safeX / Math.max(safeY, safeZ);
+  
+  // Secondary: Z (depth) should be larger than Y (height) for temples
+  const zOverY = safeZ / safeY;
+  
+  // Tertiary: Frame should be wider than it is tall
+  const widthHeightRatio = safeX / safeY;
+  
+  // Quaternary: Temples should extend backward (negative Z)
+  const frontZ = Math.max(0, box.max.z);
+  const backZ = Math.max(0, -box.min.z);
+  const backwardBias = backZ > frontZ ? 1 : 0;
 
-  // Keep depth balanced around center to avoid selecting extreme side profiles
-  const frontDepth = Math.max(0, box.max.z);
-  const backDepth = Math.max(0, -box.min.z);
-  const depthBalance =
-    1 - Math.min(1, Math.abs(frontDepth - backDepth) / Math.max(frontDepth + backDepth, 0.001));
-
-  // Prefer orientations where temples sit behind the frame instead of poking forward.
-  const backwardBias = THREE.MathUtils.clamp(
-    (backDepth - frontDepth) / Math.max(frontDepth + backDepth, 0.001),
-    -1,
-    1
-  );
-
-  return widthDepthRatio * 8 + widthHeightRatio * 0.4 + depthBalance + backwardBias * 0.9;
+  return xIsWidest * 10 + widthHeightRatio * 3 + zOverY * 2 + backwardBias;
 };
 
 const normalizeQuarterRotation = (deg: number) => {
@@ -64,19 +70,24 @@ export function normalizeGlassesScene(
   sourceScene: THREE.Object3D,
   { forceFlipFrontBack = false, verticalOffsetFactor = 0.03, manualRotationDeg = 0 }: NormalizeModelOptions = {}
 ): NormalizedModelResult {
+  // Step 1: Find the best cardinal rotation
   let bestScene: THREE.Object3D | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
+  let bestAngle = 0;
 
-  for (const angle of Y_ROTATION_CANDIDATES) {
+  for (const angle of CARDINAL_ROTATIONS) {
     const candidate = sourceScene.clone(true);
-    candidate.rotation.y += angle;
+    candidate.rotation.set(0, 0, 0); // Reset rotation first
+    candidate.rotation.y = angle;
+    candidate.updateMatrixWorld(true);
 
     const { box, size } = recenterAndMeasure(candidate);
-    const score = scoreOrientation(box, size);
+    const score = scoreOrientation(size, box);
 
     if (score > bestScore) {
       bestScore = score;
       bestScene = candidate;
+      bestAngle = angle;
     }
   }
 
@@ -84,35 +95,43 @@ export function normalizeGlassesScene(
   let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
   let didFlipFrontBack = false;
 
-  const frontDepth = Math.max(0, finalBox.max.z);
-  const backDepth = Math.max(0, -finalBox.min.z);
+  // Step 2: Check if temples are pointing forward and flip if needed
+  const frontZ = Math.max(0, finalBox.max.z);
+  const backZ = Math.max(0, -finalBox.min.z);
 
-  // If model protrudes more in front than behind, flip so temples go backward.
-  if (frontDepth > backDepth * 1.03) {
+  // If more geometry is in front (+Z) than back (-Z), flip 180°
+  if (frontZ > backZ * 1.1) {
     finalScene.rotation.y += Math.PI;
-    didFlipFrontBack = !didFlipFrontBack;
+    didFlipFrontBack = true;
+    finalScene.updateMatrixWorld(true);
     ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
   }
 
+  // Step 3: Apply manual force flip if requested
   if (forceFlipFrontBack) {
     finalScene.rotation.y += Math.PI;
     didFlipFrontBack = !didFlipFrontBack;
+    finalScene.updateMatrixWorld(true);
     ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
   }
 
+  // Step 4: Apply manual rotation (0, 90, 180, 270 degrees)
   const normalizedManualRotationDeg = normalizeQuarterRotation(manualRotationDeg);
   if (normalizedManualRotationDeg !== 0) {
     finalScene.rotation.y += THREE.MathUtils.degToRad(normalizedManualRotationDeg);
     if (normalizedManualRotationDeg === 180) {
       didFlipFrontBack = !didFlipFrontBack;
     }
+    finalScene.updateMatrixWorld(true);
     ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
   }
 
+  // Step 5: Apply vertical offset
   finalScene.position.y -= finalSize.y * verticalOffsetFactor;
   finalScene.updateMatrixWorld(true);
 
-  const baseModelWidth = Math.max(finalSize.x, finalSize.y * 1.05, 0.001);
+  // Base model width for scaling (use the widest dimension)
+  const baseModelWidth = Math.max(finalSize.x, 0.001);
 
   return {
     normalizedScene: finalScene,
