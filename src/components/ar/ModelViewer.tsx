@@ -53,3 +53,4 @@ export default function ModelViewer({ modelUrl, forceFlipFrontBack = false }: Mo
       </div>
     </div>
   );
+}
