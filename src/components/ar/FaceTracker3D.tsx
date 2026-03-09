@@ -61,15 +61,31 @@ function TrackedGlasses({
     };
 
     const finalScene = scene.clone(true);
-    let { size: finalSize } = recenterAndMeasure(finalScene);
+    let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
     let didFlipFrontBack = false;
 
-    // Keep source model orientation by default to avoid accidental mirror/side swaps.
-    // Use explicit admin flip only when a specific asset needs correction.
+    // Some GLB assets are authored sideways (width on Z axis).
+    // Bring frame width to X axis so the front faces camera naturally.
+    if (finalSize.z > finalSize.x * 1.18) {
+      finalScene.rotation.y -= Math.PI / 2;
+      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
+    }
+
+    const frontDepth = Math.max(0, finalBox.max.z);
+    const backDepth = Math.max(0, -finalBox.min.z);
+
+    // Auto-correct front/back so temples extend towards ears.
+    if (frontDepth > backDepth) {
+      finalScene.rotation.y += Math.PI;
+      didFlipFrontBack = !didFlipFrontBack;
+      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
+    }
+
+    // Manual admin override for specific assets.
     if (forceFlipFrontBack) {
       finalScene.rotation.y += Math.PI;
-      didFlipFrontBack = true;
-      ({ size: finalSize } = recenterAndMeasure(finalScene));
+      didFlipFrontBack = !didFlipFrontBack;
+      ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
     }
 
     finalScene.position.y -= finalSize.y * 0.03;
