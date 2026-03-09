@@ -24,6 +24,7 @@ interface FaceTracker3DProps {
   fitYOffset?: number;
   fitTiltMultiplier?: number;
   forceFlipFrontBack?: boolean;
+  manualRotationDeg?: number;
   onModelLoaded?: () => void;
 }
 
@@ -35,6 +36,7 @@ function TrackedGlasses({
   fitYOffset = 0,
   fitTiltMultiplier = 1,
   forceFlipFrontBack = false,
+  manualRotationDeg = 0,
   onModelLoaded,
 }: Omit<FaceTracker3DProps, "canvasWidth" | "canvasHeight">) {
   const { scene } = useGLTF(modelUrl);
@@ -45,8 +47,8 @@ function TrackedGlasses({
   const smoothedScale = useRef(1);
 
   const { normalizedScene, baseModelWidth, isFrontBackFlipped } = useMemo(
-    () => normalizeGlassesScene(scene, { forceFlipFrontBack }),
-    [scene, forceFlipFrontBack]
+    () => normalizeGlassesScene(scene, { forceFlipFrontBack, manualRotationDeg }),
+    [scene, forceFlipFrontBack, manualRotationDeg]
   );
 
   useEffect(() => {
@@ -180,6 +182,7 @@ export default function FaceTracker3D({
   fitYOffset = 0,
   fitTiltMultiplier = 1,
   forceFlipFrontBack = false,
+  manualRotationDeg = 0,
   onModelLoaded,
 }: FaceTracker3DProps) {
   if (!canvasWidth || !canvasHeight) return null;
@@ -218,6 +221,7 @@ export default function FaceTracker3D({
         fitYOffset={fitYOffset}
         fitTiltMultiplier={fitTiltMultiplier}
         forceFlipFrontBack={forceFlipFrontBack}
+        manualRotationDeg={manualRotationDeg}
         onModelLoaded={onModelLoaded}
       />
     </Canvas>
