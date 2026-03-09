@@ -1663,7 +1663,23 @@ export function ProductForm({ product, onClose, onSave }: ProductFormProps) {
                     >
                       Flipped
                     </Button>
-                  </div>
+                   </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs border-dashed"
+                    onClick={() => {
+                      setArManualRotationDeg(0);
+                      setArFlipFrontBack(false);
+                      setArFitScale("1");
+                      setArFitYOffset("0");
+                      setArFitTiltMultiplier("1");
+                    }}
+                  >
+                    ↺ Reset to Auto
+                  </Button>
                 </div>
 
                 {arModelUrl && (
