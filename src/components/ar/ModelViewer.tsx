@@ -4,12 +4,25 @@ import { OrbitControls, useGLTF, Environment, Html } from "@react-three/drei";
 import { Loader2 } from "lucide-react";
 import { normalizeGlassesScene } from "./modelOrientation";
 
-function GlassesModel({ url, forceFlipFrontBack = false }: { url: string; forceFlipFrontBack?: boolean }) {
+function GlassesModel({
+  url,
+  forceFlipFrontBack = false,
+  manualRotationDeg = 0,
+}: {
+  url: string;
+  forceFlipFrontBack?: boolean;
+  manualRotationDeg?: number;
+}) {
   const { scene } = useGLTF(url);
 
   const normalizedScene = useMemo(
-    () => normalizeGlassesScene(scene, { forceFlipFrontBack, verticalOffsetFactor: 0 }).normalizedScene,
-    [scene, forceFlipFrontBack]
+    () =>
+      normalizeGlassesScene(scene, {
+        forceFlipFrontBack,
+        manualRotationDeg,
+        verticalOffsetFactor: 0,
+      }).normalizedScene,
+    [scene, forceFlipFrontBack, manualRotationDeg]
   );
 
   return <primitive object={normalizedScene} scale={1} />;
@@ -29,9 +42,14 @@ function LoadingFallback() {
 interface ModelViewerProps {
   modelUrl: string;
   forceFlipFrontBack?: boolean;
+  manualRotationDeg?: number;
 }
 
-export default function ModelViewer({ modelUrl, forceFlipFrontBack = false }: ModelViewerProps) {
+export default function ModelViewer({
+  modelUrl,
+  forceFlipFrontBack = false,
+  manualRotationDeg = 0,
+}: ModelViewerProps) {
   return (
     <div className="relative w-full h-full bg-gradient-to-b from-muted to-background rounded-lg">
       <Canvas camera={{ position: [0, 0, 3], fov: 45 }} style={{ width: "100%", height: "100%" }}>
@@ -41,7 +59,11 @@ export default function ModelViewer({ modelUrl, forceFlipFrontBack = false }: Mo
         <spotLight position={[0, 10, 0]} angle={0.3} penumbra={1} intensity={0.5} />
 
         <Suspense fallback={<LoadingFallback />}>
-          <GlassesModel url={modelUrl} forceFlipFrontBack={forceFlipFrontBack} />
+          <GlassesModel
+            url={modelUrl}
+            forceFlipFrontBack={forceFlipFrontBack}
+            manualRotationDeg={manualRotationDeg}
+          />
           <Environment preset="studio" />
         </Suspense>
 
@@ -54,3 +76,4 @@ export default function ModelViewer({ modelUrl, forceFlipFrontBack = false }: Mo
     </div>
   );
 }
+

@@ -875,6 +875,7 @@ export type Database = {
           ar_fit_y_offset: number
           ar_flip_front_back: boolean
           ar_image: string | null
+          ar_manual_rotation_deg: number
           ar_model_url: string | null
           brand_id: string | null
           category_id: string | null
@@ -914,6 +915,7 @@ export type Database = {
           ar_fit_y_offset?: number
           ar_flip_front_back?: boolean
           ar_image?: string | null
+          ar_manual_rotation_deg?: number
           ar_model_url?: string | null
           brand_id?: string | null
           category_id?: string | null
@@ -953,6 +955,7 @@ export type Database = {
           ar_fit_y_offset?: number
           ar_flip_front_back?: boolean
           ar_image?: string | null
+          ar_manual_rotation_deg?: number
           ar_model_url?: string | null
           brand_id?: string | null
           category_id?: string | null

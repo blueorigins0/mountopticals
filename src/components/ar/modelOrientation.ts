@@ -3,6 +3,7 @@ import * as THREE from "three";
 interface NormalizeModelOptions {
   forceFlipFrontBack?: boolean;
   verticalOffsetFactor?: number;
+  manualRotationDeg?: number;
 }
 
 interface NormalizedModelResult {
@@ -41,14 +42,27 @@ const scoreOrientation = (box: THREE.Box3, size: THREE.Vector3) => {
   // Keep depth balanced around center to avoid selecting extreme side profiles
   const frontDepth = Math.max(0, box.max.z);
   const backDepth = Math.max(0, -box.min.z);
-  const depthBalance = 1 - Math.min(1, Math.abs(frontDepth - backDepth) / Math.max(frontDepth + backDepth, 0.001));
+  const depthBalance =
+    1 - Math.min(1, Math.abs(frontDepth - backDepth) / Math.max(frontDepth + backDepth, 0.001));
 
-  return widthDepthRatio * 8 + widthHeightRatio * 0.4 + depthBalance;
+  // Prefer orientations where temples sit behind the frame instead of poking forward.
+  const backwardBias = THREE.MathUtils.clamp(
+    (backDepth - frontDepth) / Math.max(frontDepth + backDepth, 0.001),
+    -1,
+    1
+  );
+
+  return widthDepthRatio * 8 + widthHeightRatio * 0.4 + depthBalance + backwardBias * 0.9;
+};
+
+const normalizeQuarterRotation = (deg: number) => {
+  const snapped = Math.round((Number.isFinite(deg) ? deg : 0) / 90) * 90;
+  return ((snapped % 360) + 360) % 360;
 };
 
 export function normalizeGlassesScene(
   sourceScene: THREE.Object3D,
-  { forceFlipFrontBack = false, verticalOffsetFactor = 0.03 }: NormalizeModelOptions = {}
+  { forceFlipFrontBack = false, verticalOffsetFactor = 0.03, manualRotationDeg = 0 }: NormalizeModelOptions = {}
 ): NormalizedModelResult {
   let bestScene: THREE.Object3D | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
@@ -86,6 +100,15 @@ export function normalizeGlassesScene(
     ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
   }
 
+  const normalizedManualRotationDeg = normalizeQuarterRotation(manualRotationDeg);
+  if (normalizedManualRotationDeg !== 0) {
+    finalScene.rotation.y += THREE.MathUtils.degToRad(normalizedManualRotationDeg);
+    if (normalizedManualRotationDeg === 180) {
+      didFlipFrontBack = !didFlipFrontBack;
+    }
+    ({ box: finalBox, size: finalSize } = recenterAndMeasure(finalScene));
+  }
+
   finalScene.position.y -= finalSize.y * verticalOffsetFactor;
   finalScene.updateMatrixWorld(true);
 
@@ -97,4 +120,5 @@ export function normalizeGlassesScene(
     isFrontBackFlipped: didFlipFrontBack,
   };
 }
+
 

@@ -33,6 +33,7 @@ interface Product {
   ar_fit_y_offset: number;
   ar_fit_tilt_multiplier: number;
   ar_flip_front_back: boolean;
+  ar_manual_rotation_deg: number;
 }
 
 type MediaTab = "tryon" | "photos" | "videos" | "360";
@@ -71,6 +72,7 @@ export default function ARTryOn() {
   const fitYOffset = Number(product?.ar_fit_y_offset ?? 0);
   const fitTiltMultiplier = Math.max(0.2, Number(product?.ar_fit_tilt_multiplier ?? 1));
   const forceFlipFrontBack = Boolean(product?.ar_flip_front_back);
+  const manualRotationDeg = Number(product?.ar_manual_rotation_deg ?? 0);
 
   // Load product
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function ARTryOn() {
       if (!productId) return;
       const { data } = await supabase
         .from("products")
-        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url, ar_fit_scale, ar_fit_y_offset, ar_fit_tilt_multiplier, ar_flip_front_back")
+        .select("id, name, slug, images, guest_price, retail_price, regular_price, ar_image, ar_model_url, ar_fit_scale, ar_fit_y_offset, ar_fit_tilt_multiplier, ar_flip_front_back, ar_manual_rotation_deg")
         .eq("id", productId)
         .maybeSingle();
       if (data) setProduct(data as unknown as Product);
@@ -510,6 +512,7 @@ export default function ARTryOn() {
                   fitYOffset={fitYOffset}
                   fitTiltMultiplier={fitTiltMultiplier}
                   forceFlipFrontBack={forceFlipFrontBack}
+                  manualRotationDeg={manualRotationDeg}
                   onModelLoaded={() => setModelRenderStatus("ready")}
                 />
               </Suspense>
