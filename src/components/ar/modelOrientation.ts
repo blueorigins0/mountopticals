@@ -12,8 +12,22 @@ interface NormalizedModelResult {
   isFrontBackFlipped: boolean;
 }
 
-// Test 4 cardinal directions (0°, 90°, 180°, 270°)
-const CARDINAL_ROTATIONS = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+// Test all 24 cardinal orientations (6 face directions × 4 in-plane rotations)
+// This covers models exported with any axis convention
+const CANDIDATE_ROTATIONS: [number, number, number][] = [];
+
+// Generate: 4 Y-rotations × 4 X-rotations = 16 combos (covers most cases)
+for (const xAngle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+  for (const yAngle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+    CANDIDATE_ROTATIONS.push([xAngle, yAngle, 0]);
+  }
+}
+// Also add Z-axis rotations for edge cases
+for (const zAngle of [Math.PI / 2, (3 * Math.PI) / 2]) {
+  for (const yAngle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+    CANDIDATE_ROTATIONS.push([0, yAngle, zAngle]);
+  }
+}
 
 const getBounds = (object: THREE.Object3D) => {
   object.updateMatrixWorld(true);
@@ -35,30 +49,45 @@ const recenterAndMeasure = (object: THREE.Object3D) => {
 /**
  * Score an orientation for eyewear frontal view.
  * Ideal glasses orientation:
- * - Wide on X-axis (left-right frame width)
- * - Short on Y-axis (lens height)
- * - Thin on Z-axis (front-back depth, temples should extend backward)
+ * - X-axis: widest (frame width, left-right)
+ * - Y-axis: shortest (lens height, up-down)  
+ * - Z-axis: medium (temple depth, front-back)
+ * 
+ * Key insight: For glasses, X >> Z > Y always.
+ * Width/height ratio should be high (wide frame, short lenses).
  */
 const scoreOrientation = (size: THREE.Vector3, box: THREE.Box3) => {
   const safeX = Math.max(size.x, 0.001);
   const safeY = Math.max(size.y, 0.001);
   const safeZ = Math.max(size.z, 0.001);
 
-  // Primary: X should be the largest dimension (frame width)
-  const xIsWidest = safeX / Math.max(safeY, safeZ);
-  
-  // Secondary: Z (depth) should be larger than Y (height) for temples
-  const zOverY = safeZ / safeY;
-  
-  // Tertiary: Frame should be wider than it is tall
-  const widthHeightRatio = safeX / safeY;
-  
-  // Quaternary: Temples should extend backward (negative Z)
-  const frontZ = Math.max(0, box.max.z);
+  const maxDim = Math.max(safeX, safeY, safeZ);
+  const minDim = Math.min(safeX, safeY, safeZ);
+
+  // Primary: X must be the largest dimension (frame width spans left-right)
+  const xIsWidest = safeX / maxDim; // 1.0 when X is widest
+
+  // Secondary: Y must be the smallest dimension (lens height is shortest)
+  const yIsShortest = minDim / safeY; // 1.0 when Y is shortest
+
+  // Tertiary: Width-to-height ratio should be large (glasses are wide and short)
+  const aspectRatio = safeX / safeY;
+
+  // Quaternary: Z (depth/temples) should be between X and Y
+  const zIsMedium = (safeZ > safeY && safeZ < safeX) ? 2 : 0;
+
+  // Bonus: Temples should extend backward (-Z direction)
   const backZ = Math.max(0, -box.min.z);
+  const frontZ = Math.max(0, box.max.z);
   const backwardBias = backZ > frontZ ? 1 : 0;
 
-  return xIsWidest * 10 + widthHeightRatio * 3 + zOverY * 2 + backwardBias;
+  return (
+    xIsWidest * 15 +
+    yIsShortest * 10 +
+    aspectRatio * 5 +
+    zIsMedium * 3 +
+    backwardBias * 1
+  );
 };
 
 const normalizeQuarterRotation = (deg: number) => {
@@ -70,15 +99,13 @@ export function normalizeGlassesScene(
   sourceScene: THREE.Object3D,
   { forceFlipFrontBack = false, verticalOffsetFactor = 0.03, manualRotationDeg = 0 }: NormalizeModelOptions = {}
 ): NormalizedModelResult {
-  // Step 1: Find the best cardinal rotation
+  // Step 1: Find the best orientation from all candidates
   let bestScene: THREE.Object3D | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
-  let bestAngle = 0;
 
-  for (const angle of CARDINAL_ROTATIONS) {
+  for (const [rx, ry, rz] of CANDIDATE_ROTATIONS) {
     const candidate = sourceScene.clone(true);
-    candidate.rotation.set(0, 0, 0); // Reset rotation first
-    candidate.rotation.y = angle;
+    candidate.rotation.set(rx, ry, rz);
     candidate.updateMatrixWorld(true);
 
     const { box, size } = recenterAndMeasure(candidate);
@@ -87,7 +114,6 @@ export function normalizeGlassesScene(
     if (score > bestScore) {
       bestScore = score;
       bestScene = candidate;
-      bestAngle = angle;
     }
   }
 
@@ -95,11 +121,10 @@ export function normalizeGlassesScene(
   let { box: finalBox, size: finalSize } = recenterAndMeasure(finalScene);
   let didFlipFrontBack = false;
 
-  // Step 2: Check if temples are pointing forward and flip if needed
+  // Step 2: Ensure temples point backward (-Z)
   const frontZ = Math.max(0, finalBox.max.z);
   const backZ = Math.max(0, -finalBox.min.z);
 
-  // If more geometry is in front (+Z) than back (-Z), flip 180°
   if (frontZ > backZ * 1.1) {
     finalScene.rotation.y += Math.PI;
     didFlipFrontBack = true;
@@ -130,7 +155,7 @@ export function normalizeGlassesScene(
   finalScene.position.y -= finalSize.y * verticalOffsetFactor;
   finalScene.updateMatrixWorld(true);
 
-  // Base model width for scaling (use the widest dimension)
+  // Base model width for scaling
   const baseModelWidth = Math.max(finalSize.x, 0.001);
 
   return {
@@ -139,5 +164,3 @@ export function normalizeGlassesScene(
     isFrontBackFlipped: didFlipFrontBack,
   };
 }
-
-
