@@ -121,7 +121,7 @@ function TrackedGlasses({
       (landmarks[127]?.z ?? landmarks[33]?.z ?? 0);
     const yawDirection = isFrontBackFlipped ? 1 : -1;
     const yaw = THREE.MathUtils.clamp(templeDepthDiff * 0.68 * yawDirection, -0.08, 0.08);
-    const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.72 * fitTiltMultiplier, -0.2, 0.2);
+    const roll = THREE.MathUtils.clamp(-normalizedTiltAngle * 0.85 * fitTiltMultiplier, -0.45, 0.45);
 
     const targetYCanvas =
       THREE.MathUtils.lerp(eyeMidY + eyeDist * (0.04 + fitYOffset), templeMidY + eyeDist * (0.045 + fitYOffset), 0.3) +
