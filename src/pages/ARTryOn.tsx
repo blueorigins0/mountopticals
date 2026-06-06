@@ -525,21 +525,23 @@ export default function ARTryOn() {
 
             {/* 3D GLB overlay on camera feed */}
             {cameraActive && use3DOverlay && videoDims.w > 0 && (
-              <Suspense fallback={null}>
-                <FaceTracker3D
-                  modelUrl={product!.ar_model_url!}
-                  landmarksRef={landmarksRef}
-                  frameMetricsRef={frameMetricsRef}
-                  canvasWidth={videoDims.w}
-                  canvasHeight={videoDims.h}
-                  fitScaleMultiplier={fitScaleMultiplier}
-                  fitYOffset={fitYOffset}
-                  fitTiltMultiplier={fitTiltMultiplier}
-                  forceFlipFrontBack={forceFlipFrontBack}
-                  manualRotationDeg={manualRotationDeg}
-                  onModelLoaded={() => setModelRenderStatus("ready")}
-                />
-              </Suspense>
+              <ModelErrorBoundary onError={() => setModelRenderStatus("failed")}>
+                <Suspense fallback={null}>
+                  <FaceTracker3D
+                    modelUrl={product!.ar_model_url!}
+                    landmarksRef={landmarksRef}
+                    frameMetricsRef={frameMetricsRef}
+                    canvasWidth={videoDims.w}
+                    canvasHeight={videoDims.h}
+                    fitScaleMultiplier={fitScaleMultiplier}
+                    fitYOffset={fitYOffset}
+                    fitTiltMultiplier={fitTiltMultiplier}
+                    forceFlipFrontBack={forceFlipFrontBack}
+                    manualRotationDeg={manualRotationDeg}
+                    onModelLoaded={() => setModelRenderStatus("ready")}
+                  />
+                </Suspense>
+              </ModelErrorBoundary>
             )}
 
             {/* Camera controls */}
