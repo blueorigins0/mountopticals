@@ -155,8 +155,8 @@ export default function ARTryOn() {
     initFaceLandmarker();
   }, []);
 
-  // Model readiness: prefer direct render when URL format looks like GLB/GLTF
-  // (network pre-checks can fail due CORS and incorrectly force 2D fallback)
+  // Model readiness: verify URL is reachable before attempting 3D render.
+  // A 403/404 here forces the 2D fallback instead of crashing the GLTF loader.
   useEffect(() => {
     const modelUrl = product?.ar_model_url;
 
@@ -167,7 +167,30 @@ export default function ARTryOn() {
 
     const lowerUrl = modelUrl.toLowerCase();
     const isModelLike = /\.(glb|gltf)(\?|#|$)/.test(lowerUrl);
-    setModelRenderStatus(isModelLike ? "ready" : "failed");
+    if (!isModelLike) {
+      setModelRenderStatus("failed");
+      return;
+    }
+
+    let cancelled = false;
+    setModelRenderStatus("checking");
+    (async () => {
+      try {
+        let res = await fetch(modelUrl, { method: "HEAD" });
+        if (!res.ok) {
+          // Some CDNs (e.g. ImageKit) don't support HEAD — retry with ranged GET
+          res = await fetch(modelUrl, { method: "GET", headers: { Range: "bytes=0-0" } });
+        }
+        if (cancelled) return;
+        setModelRenderStatus(res.ok || res.status === 206 ? "ready" : "failed");
+      } catch {
+        if (!cancelled) setModelRenderStatus("failed");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [product?.ar_model_url]);
 
   const startCamera = useCallback(async () => {
