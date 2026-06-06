@@ -18,6 +18,7 @@ import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 import type { TrackingFrameMetrics } from "@/components/ar/FaceTracker3D";
 
 const FaceTracker3D = lazy(() => import("@/components/ar/FaceTracker3D"));
+import ModelErrorBoundary from "@/components/ar/ModelErrorBoundary";
 
 interface Product {
   id: string;
